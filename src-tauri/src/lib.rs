@@ -1,0 +1,446 @@
+//! Honnyaku - AI Translation Desktop App
+//!
+//! This library provides the core functionality for the Honnyaku translation application.
+
+mod services;
+
+use services::clipboard::{ClipboardContent, ClipboardError};
+use services::permissions::PermissionStatus;
+use services::settings::{AppSettings, SettingsError};
+use services::shortcut::{self, ShortcutError, ShortcutStatus};
+use services::translation::{
+    self, Language, ProviderStatus, TranslationError, TranslationResult,
+};
+
+/// Greet command for testing IPC
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}! Welcome to Honnyaku.", name)
+}
+
+// ============================================================================
+// 設定管理コマンド
+// ============================================================================
+
+/// 設定を取得する
+///
+/// tauri-plugin-storeから設定を読み込み、存在しない場合はデフォルト値を返す
+#[tauri::command]
+async fn get_settings(
+    app: tauri::AppHandle,
+) -> Result<AppSettings, SettingsError> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| {
+        SettingsError::LoadFailed(e.to_string())
+    })?;
+
+    let shortcut = store
+        .get("shortcut")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().shortcut);
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    Ok(AppSettings {
+        shortcut,
+        ollama_model,
+        ollama_endpoint,
+    })
+}
+
+/// 設定を保存する
+#[tauri::command]
+async fn save_settings(
+    app: tauri::AppHandle,
+    settings: AppSettings,
+) -> Result<(), SettingsError> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| {
+        SettingsError::SaveFailed(e.to_string())
+    })?;
+
+    store.set("shortcut", serde_json::json!(settings.shortcut));
+    store.set("ollamaModel", serde_json::json!(settings.ollama_model));
+    store.set("ollamaEndpoint", serde_json::json!(settings.ollama_endpoint));
+
+    store.save().map_err(|e| SettingsError::SaveFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// 設定をデフォルトにリセットする
+#[tauri::command]
+async fn reset_settings(app: tauri::AppHandle) -> Result<AppSettings, SettingsError> {
+    let defaults = AppSettings::default();
+    save_settings(app, defaults.clone()).await?;
+    Ok(defaults)
+}
+
+// ============================================================================
+// 翻訳コマンド
+// ============================================================================
+
+/// テキストを翻訳する
+///
+/// 言語検出はフロントエンドで行い、翻訳元・翻訳先言語を指定して呼び出す
+#[tauri::command]
+async fn translate(
+    app: tauri::AppHandle,
+    text: String,
+    source_lang: Language,
+    target_lang: Language,
+) -> Result<TranslationResult, TranslationError> {
+    use tauri_plugin_store::StoreExt;
+
+    // 設定を取得
+    let store = app
+        .store("settings.json")
+        .map_err(|e| TranslationError::ApiError(format!("設定の読み込みに失敗: {}", e)))?;
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    translation::translate_with_ollama(
+        &text,
+        source_lang,
+        target_lang,
+        &ollama_endpoint,
+        &ollama_model,
+    )
+    .await
+}
+
+/// Ollamaの接続状態を確認する
+#[tauri::command]
+async fn check_provider_status(
+    app: tauri::AppHandle,
+) -> ProviderStatus {
+    use tauri_plugin_store::StoreExt;
+
+    let ollama_endpoint = app
+        .store("settings.json")
+        .ok()
+        .and_then(|store| {
+            store
+                .get("ollamaEndpoint")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+        })
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    translation::check_ollama_status(&ollama_endpoint).await
+}
+
+/// Ollamaモデルをプリロードする
+///
+/// アプリ起動時に呼び出してモデルをウォームアップし、
+/// 初回翻訳時のレスポンス時間を短縮する
+#[tauri::command]
+async fn preload_ollama_model(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    translation::preload_ollama_model(&ollama_endpoint, &ollama_model).await
+}
+
+// ============================================================================
+// ショートカットコマンド
+// ============================================================================
+
+/// ショートカット文字列を検証する
+#[tauri::command]
+fn validate_shortcut_format(shortcut_str: String) -> Result<(), ShortcutError> {
+    shortcut::validate_shortcut(&shortcut_str)
+}
+
+/// 現在のショートカット登録状態を取得する
+#[tauri::command]
+fn get_shortcut_status(app: tauri::AppHandle) -> ShortcutStatus {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    // 設定からショートカットを取得
+    let shortcut_str = get_current_shortcut_from_settings(&app);
+
+    // 登録状態を確認
+    let is_registered = if let Some(ref s) = shortcut_str {
+        app.global_shortcut().is_registered(s.as_str())
+    } else {
+        false
+    };
+
+    ShortcutStatus {
+        current_shortcut: shortcut_str,
+        is_registered,
+    }
+}
+
+/// 設定からショートカット文字列を取得するヘルパー関数
+fn get_current_shortcut_from_settings(app: &tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_store::StoreExt;
+
+    app.store("settings.json")
+        .ok()
+        .and_then(|store| {
+            store
+                .get("shortcut")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+        })
+}
+
+/// グローバルショートカットを登録する
+#[tauri::command]
+async fn register_shortcut(
+    app: tauri::AppHandle,
+    shortcut_str: String,
+) -> Result<(), ShortcutError> {
+    use tauri::Emitter;
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+    // ショートカット文字列を検証
+    shortcut::validate_shortcut(&shortcut_str)?;
+
+    // 既に登録されているか確認
+    if app.global_shortcut().is_registered(shortcut_str.as_str()) {
+        return Ok(()); // 既に登録済みなら成功扱い
+    }
+
+    // ショートカットを登録
+    app.global_shortcut()
+        .on_shortcut(shortcut_str.as_str(), move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                // ショートカットが押されたらフロントエンドにイベントを発行
+                let _ = _app.emit("shortcut-triggered", ());
+            }
+        })
+        .map_err(|e| ShortcutError::RegistrationFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// グローバルショートカットを解除する
+#[tauri::command]
+async fn unregister_shortcut(
+    app: tauri::AppHandle,
+    shortcut_str: String,
+) -> Result<(), ShortcutError> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    // 登録されていなければ成功扱い
+    if !app.global_shortcut().is_registered(shortcut_str.as_str()) {
+        return Ok(());
+    }
+
+    // ショートカットを解除
+    app.global_shortcut()
+        .unregister(shortcut_str.as_str())
+        .map_err(|e| ShortcutError::UnregistrationFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// すべてのグローバルショートカットを解除する
+#[tauri::command]
+async fn unregister_all_shortcuts(app: tauri::AppHandle) -> Result<(), ShortcutError> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| ShortcutError::UnregistrationFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+// ============================================================================
+// 権限管理コマンド
+// ============================================================================
+
+/// アクセシビリティ権限の状態を確認する
+#[tauri::command]
+async fn check_accessibility_permission_status() -> PermissionStatus {
+    let is_granted = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+
+    PermissionStatus {
+        accessibility_granted: is_granted,
+        needs_permission_request: !is_granted,
+    }
+}
+
+/// アクセシビリティ権限をリクエストする
+///
+/// システム環境設定のアクセシビリティページを開く
+#[tauri::command]
+async fn request_accessibility_permission_prompt() -> PermissionStatus {
+    // 現在の権限状態を確認
+    let is_granted = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+
+    if !is_granted {
+        // 権限が付与されていない場合は、システムダイアログを表示
+        tauri_plugin_macos_permissions::request_accessibility_permission().await;
+    }
+
+    // 再度権限状態を確認（ダイアログ表示後は即座に反映されないことがある）
+    let is_granted_after = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+
+    PermissionStatus {
+        accessibility_granted: is_granted_after,
+        needs_permission_request: !is_granted_after,
+    }
+}
+
+/// アクセシビリティ権限が付与されているか確認する
+#[tauri::command]
+async fn is_accessibility_granted() -> bool {
+    tauri_plugin_macos_permissions::check_accessibility_permission().await
+}
+
+// ============================================================================
+// クリップボードコマンド
+// ============================================================================
+
+/// クリップボードからテキストを読み取る
+#[tauri::command]
+async fn read_clipboard(app: tauri::AppHandle) -> Result<ClipboardContent, ClipboardError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    match app.clipboard().read_text() {
+        Ok(text) => {
+            if text.is_empty() {
+                Ok(ClipboardContent::empty())
+            } else {
+                Ok(ClipboardContent::from_text(text))
+            }
+        }
+        Err(e) => Err(ClipboardError::ReadFailed(e.to_string())),
+    }
+}
+
+/// クリップボードにテキストを書き込む
+#[tauri::command]
+async fn write_clipboard(app: tauri::AppHandle, text: String) -> Result<(), ClipboardError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    app.clipboard()
+        .write_text(text)
+        .map_err(|e| ClipboardError::WriteFailed(e.to_string()))
+}
+
+/// 選択テキストを取得する（Cmd+Cを送信してクリップボードから読み取る）
+///
+/// 注: この機能にはアクセシビリティ権限が必要
+#[tauri::command]
+async fn get_selected_text(app: tauri::AppHandle) -> Result<ClipboardContent, ClipboardError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+
+    // 元のクリップボード内容を保存
+    let original_content = app.clipboard().read_text().ok();
+
+    // Cmd+Cキーストロークを送信
+    // 注: Tauri v2ではキーストローク送信のためにシステムAPIを直接使用する必要がある
+    // ここではAppleScriptを使用
+    let script_result = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(
+            r#"tell application "System Events"
+                keystroke "c" using command down
+            end tell"#,
+        )
+        .output();
+
+    if script_result.is_err() {
+        // 元のクリップボード内容を復元
+        if let Some(original) = original_content {
+            let _ = app.clipboard().write_text(original);
+        }
+        return Err(ClipboardError::ReadFailed(
+            "キーストローク送信に失敗しました".to_string(),
+        ));
+    }
+
+    // クリップボード更新を待機（ミリ秒）
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // クリップボードからテキストを読み取る
+    let selected_text = match app.clipboard().read_text() {
+        Ok(text) => text,
+        Err(e) => {
+            // 元のクリップボード内容を復元
+            if let Some(original) = original_content {
+                let _ = app.clipboard().write_text(original);
+            }
+            return Err(ClipboardError::ReadFailed(e.to_string()));
+        }
+    };
+
+    // 元のクリップボード内容を復元
+    if let Some(original) = original_content {
+        // 少し待ってから復元
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        let _ = app.clipboard().write_text(original);
+    }
+
+    if selected_text.is_empty() {
+        Ok(ClipboardContent::empty())
+    } else {
+        Ok(ClipboardContent::from_text(selected_text))
+    }
+}
+
+/// Run the Tauri application
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_macos_permissions::init())
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            get_settings,
+            save_settings,
+            reset_settings,
+            translate,
+            check_provider_status,
+            preload_ollama_model,
+            validate_shortcut_format,
+            get_shortcut_status,
+            register_shortcut,
+            unregister_shortcut,
+            unregister_all_shortcuts,
+            check_accessibility_permission_status,
+            request_accessibility_permission_prompt,
+            is_accessibility_granted,
+            read_clipboard,
+            write_clipboard,
+            get_selected_text,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

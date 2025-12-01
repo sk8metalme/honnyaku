@@ -1,0 +1,17 @@
+{
+  "projectId": "honnyaku",
+  "projectName": "honnyaku",
+  "language": "ja",
+  "jiraProjectKey": "PC",
+  "confluenceLabels": [
+    "project:honnyaku"
+  ],
+  "status": "active",
+  "team": [],
+  "stakeholders": [
+    "@企画",
+    "@部長"
+  ],
+  "repository": "https://github.com/sk8metalme/honnyaku",
+  "description": "honnyakuの開発"
+}
