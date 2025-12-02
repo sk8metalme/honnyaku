@@ -265,7 +265,7 @@ export function useTranslationFlow(options?: {
       try {
         unlisten = await listen('shortcut-triggered', () => {
           if (isShortcutEnabled) {
-            startFlow();
+            void startFlow();
           }
         });
       } catch (err) {
@@ -273,7 +273,7 @@ export function useTranslationFlow(options?: {
       }
     }
 
-    setupListener();
+    void setupListener();
 
     return () => {
       unlisten?.();

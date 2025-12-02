@@ -55,7 +55,7 @@ function CopyButton({
       await navigator.clipboard.writeText(text);
       setCopied(true);
       onCopy?.(text);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => { setCopied(false); }, 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -63,7 +63,9 @@ function CopyButton({
 
   return (
     <button
-      onClick={handleCopy}
+      onClick={() => {
+        void handleCopy();
+      }}
       className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       title="コピー"
       aria-label="翻訳結果をコピー"

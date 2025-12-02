@@ -89,7 +89,7 @@ export function useShortcut(
       }
     }
 
-    setupListener();
+    void setupListener();
 
     return () => {
       unlisten?.();
@@ -111,7 +111,7 @@ export function useShortcut(
 
   // 初回マウント時にステータスを取得
   useEffect(() => {
-    refreshStatus();
+    void refreshStatus();
   }, [refreshStatus]);
 
   /**

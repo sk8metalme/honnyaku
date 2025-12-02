@@ -41,8 +41,8 @@ function App() {
 
   // 初期化: ショートカット登録
   useEffect(() => {
-    if (settings && !isRegistered && !settingsLoading) {
-      registerShortcut(settings.shortcut).catch((err) => {
+    if (!isRegistered && !settingsLoading) {
+      void registerShortcut(settings.shortcut).catch((err: unknown) => {
         console.error('Failed to register shortcut:', err);
       });
     }
@@ -50,13 +50,13 @@ function App() {
 
   // 初期化: アクセシビリティ権限確認
   useEffect(() => {
-    checkAccessibility();
+    void checkAccessibility();
   }, [checkAccessibility]);
 
   // 初期化: Ollamaモデルをプリロード（初回翻訳を高速化）
   useEffect(() => {
-    if (settings && !settingsLoading) {
-      invoke('preload_ollama_model').catch((err) => {
+    if (!settingsLoading) {
+      void invoke('preload_ollama_model').catch((err: unknown) => {
         console.log('Model preload skipped:', err);
       });
     }
@@ -75,7 +75,9 @@ function App() {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [state, isSettingsOpen, reset]);
 
   // 翻訳結果をコピー
@@ -98,7 +100,9 @@ function App() {
               Honnyaku
             </h1>
             <button
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setIsSettingsOpen(true);
+              }}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               aria-label="設定"
             >
@@ -147,7 +151,7 @@ function App() {
                 isRegistered ? 'bg-green-500' : 'bg-yellow-500'
               }`} />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                ショートカット: {settings?.shortcut || '未設定'}
+                ショートカット: {settings.shortcut}
                 {isRegistered && ' (登録済み)'}
               </span>
             </div>
@@ -156,7 +160,7 @@ function App() {
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
               <span className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                モデル: {settings?.ollamaModel || 'qwen2.5:3b'}
+                モデル: {settings.ollamaModel}
               </span>
             </div>
           </div>
@@ -170,7 +174,7 @@ function App() {
               <li>翻訳したいテキストを選択</li>
               <li>
                 <kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">
-                  {settings?.shortcut || 'Cmd+Shift+T'}
+                  {settings.shortcut}
                 </kbd>
                 {' '}を押す
               </li>
@@ -181,7 +185,9 @@ function App() {
           {/* フッター */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setIsSettingsOpen(true);
+              }}
               className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
             >
               設定を開く
@@ -197,13 +203,17 @@ function App() {
         translatedText={translatedText}
         error={error}
         onClose={reset}
-        onCopy={handleCopy}
+        onCopy={(text: string) => {
+          void handleCopy(text);
+        }}
       />
 
       {/* 設定パネル */}
       <SettingsPanel
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => {
+          setIsSettingsOpen(false);
+        }}
       />
     </div>
   );

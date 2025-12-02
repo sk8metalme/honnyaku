@@ -48,7 +48,7 @@ const mockInvoke = vi.mocked(invoke);
 // ショートカットイベントを発火するヘルパー
 function triggerShortcut() {
   const listeners = mockListeners.get('shortcut-triggered') || [];
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => { listener(); });
 }
 
 describe('useTranslationFlow', () => {

@@ -82,7 +82,7 @@ export function useSettings(): UseSettingsReturn {
       }
     }
 
-    loadSettings();
+    void loadSettings();
 
     return () => {
       mounted = false;
