@@ -14,6 +14,14 @@
 
 ---
 
+## デモ
+
+<p align="center">
+  <img src="./docs/demo.gif" alt="Honnyaku Demo" width="800">
+</p>
+
+---
+
 ## ✨ 主要機能
 
 ### 🚀 グローバルショートカット翻訳
