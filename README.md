@@ -179,6 +179,49 @@ ollama run abeja-qwen2.5-7b-jp "こんにちは"
 | Q5_K_M.gguf | 約5.0GB | やや高品質 | 中速 |
 | Q8_0.gguf | 約7.5GB | 高品質 | 低速 |
 
+### 2.2 PLaMo-2-Translate（翻訳特化モデル）のインストール
+
+[Preferred Networks社](https://www.preferred.jp/)が開発した、翻訳タスクに特化した高品質モデルです。
+
+#### 特徴
+
+- **パラメータ数**: 10B（高品質な翻訳を実現）
+- **対応言語**: 日本語 ↔ 英語
+- **ライセンス**: PLaMo community license（非商用利用は自由、商用利用は要申請）
+- **Ollama対応**: GGUF形式で利用可能
+
+#### Ollamaで直接インストール
+
+```bash
+# 推奨: Q4量子化版（バランス重視、約5.6GB）
+ollama pull mitmul/plamo-2-translate:Q4_K_M
+
+# または: Q2量子化版（最小サイズ、約3.5GB）
+ollama pull mitmul/plamo-2-translate:Q2_K_S
+
+# 動作確認
+ollama run mitmul/plamo-2-translate:Q4_K_M
+```
+
+#### 量子化バリエーション
+
+| 量子化 | サイズ | 品質 | 速度 | 推奨用途 |
+|--------|--------|------|------|---------|
+| Q4_K_M | 約5.6GB | 高品質 | 中速 | バランス重視（推奨） |
+| Q2_K_S | 約3.5GB | 標準 | 高速 | 高速動作優先 |
+| IQ2_M | 約3.0GB | 標準 | 最速 | 最小サイズ優先 |
+
+#### ライセンス注意事項
+
+**非商用利用**: 自由に使用可能
+**商用利用**: [申請フォーム](https://forms.gle/mTL8tBLrMYXKNZD56)からPreferred Networks社への承認申請が必要
+
+#### 参考リンク
+
+- [PLaMo-2-Translate (HuggingFace)](https://huggingface.co/pfnet/plamo-2-translate)
+- [PLaMo GGUF版 (Ollama)](https://ollama.com/mitmul/plamo-2-translate)
+- [mmnga/plamo-2-translate-gguf](https://huggingface.co/mmnga/plamo-2-translate-gguf)
+
 ### 3. アプリのビルド
 
 ```bash
@@ -260,6 +303,7 @@ npm run tauri:build
 - **高速**: `qwen2.5:0.5b`（最速、395MB、品質は低め）
 - **高品質**: `qwen2.5:7b`（高品質、4.7GB、遅め）
 - **日本語特化**: `abeja-qwen2.5-7b-jp`（日本語に最適化、約4.3GB）
+- **翻訳専用**: `mitmul/plamo-2-translate:Q4_K_M`（翻訳タスクに最適化、10B、約5.6GB、非商用利用推奨）
 
 ### Q: 翻訳速度を改善するには？
 
