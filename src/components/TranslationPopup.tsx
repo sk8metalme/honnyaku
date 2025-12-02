@@ -7,7 +7,10 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { TranslationFlowState, TranslationFlowError } from '@/hooks/useTranslationFlow';
+import type {
+  TranslationFlowState,
+  TranslationFlowError,
+} from '@/hooks/useTranslationFlow';
 
 /**
  * TranslationPopupのProps
@@ -55,7 +58,9 @@ function CopyButton({
       await navigator.clipboard.writeText(text);
       setCopied(true);
       onCopy?.(text);
-      setTimeout(() => { setCopied(false); }, 2000);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }

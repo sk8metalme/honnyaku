@@ -98,8 +98,7 @@ export function useTranslation(): UseTranslationReturn {
       setTranslatedText(result.translatedText);
     } catch (err) {
       // エラーメッセージを設定
-      const errorMessage =
-        err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     } finally {
       setIsLoading(false);

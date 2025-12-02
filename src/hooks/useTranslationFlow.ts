@@ -117,7 +117,10 @@ export interface UseTranslationFlowReturn {
  */
 export function useTranslationFlow(options?: {
   autoStart?: boolean;
-  onTranslationComplete?: (result: { original: string; translated: string }) => void;
+  onTranslationComplete?: (result: {
+    original: string;
+    translated: string;
+  }) => void;
   onError?: (error: TranslationFlowError) => void;
 }): UseTranslationFlowReturn {
   const { autoStart = true, onTranslationComplete, onError } = options ?? {};

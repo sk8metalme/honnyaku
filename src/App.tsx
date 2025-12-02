@@ -24,20 +24,15 @@ function App() {
   const { writeText } = useClipboard();
 
   // 翻訳フロー
-  const {
-    state,
-    originalText,
-    translatedText,
-    error,
-    reset,
-  } = useTranslationFlow({
-    onTranslationComplete: () => {
-      // 翻訳完了時の処理（必要に応じてサウンド再生など）
-    },
-    onError: (err) => {
-      console.error('Translation error:', err);
-    },
-  });
+  const { state, originalText, translatedText, error, reset } =
+    useTranslationFlow({
+      onTranslationComplete: () => {
+        // 翻訳完了時の処理（必要に応じてサウンド再生など）
+      },
+      onError: (err) => {
+        console.error('Translation error:', err);
+      },
+    });
 
   // 初期化: ショートカット登録
   useEffect(() => {
@@ -81,13 +76,16 @@ function App() {
   }, [state, isSettingsOpen, reset]);
 
   // 翻訳結果をコピー
-  const handleCopy = useCallback(async (text: string) => {
-    try {
-      await writeText(text);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  }, [writeText]);
+  const handleCopy = useCallback(
+    async (text: string) => {
+      try {
+        await writeText(text);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    },
+    [writeText]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -137,19 +135,24 @@ function App() {
           <div className="space-y-3">
             {/* アクセシビリティ権限 */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <span className={`w-2 h-2 rounded-full ${
-                isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                アクセシビリティ権限: {isAccessibilityGranted ? '許可済み' : '未許可'}
+                アクセシビリティ権限:{' '}
+                {isAccessibilityGranted ? '許可済み' : '未許可'}
               </span>
             </div>
 
             {/* ショートカット */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <span className={`w-2 h-2 rounded-full ${
-                isRegistered ? 'bg-green-500' : 'bg-yellow-500'
-              }`} />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isRegistered ? 'bg-green-500' : 'bg-yellow-500'
+                }`}
+              />
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 ショートカット: {settings.shortcut}
                 {isRegistered && ' (登録済み)'}
@@ -175,8 +178,8 @@ function App() {
               <li>
                 <kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">
                   {settings.shortcut}
-                </kbd>
-                {' '}を押す
+                </kbd>{' '}
+                を押す
               </li>
               <li>翻訳結果がポップアップで表示</li>
             </ol>
