@@ -55,7 +55,7 @@ function App() {
 
   // 初期化: Ollamaモデルをプリロード（初回翻訳を高速化）
   useEffect(() => {
-    if (settings && !settingsLoading && settings.llmProvider === 'ollama') {
+    if (settings && !settingsLoading) {
       invoke('preload_ollama_model').catch((err) => {
         console.log('Model preload skipped:', err);
       });
@@ -152,11 +152,11 @@ function App() {
               </span>
             </div>
 
-            {/* LLMプロバイダー */}
+            {/* Ollamaモデル */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
               <span className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                プロバイダー: {settings?.llmProvider === 'ollama' ? 'Ollama' : 'Claude'}
+                モデル: {settings?.ollamaModel || 'qwen2.5:3b'}
               </span>
             </div>
           </div>

@@ -10,9 +10,9 @@
 
 ### Goals
 
-- グローバルショートカット（Cmd+Shift+T）でシステム全体から翻訳を起動可能にする
+- グローバルショートカット（Cmd+J）でシステム全体から翻訳を起動可能にする
 - 日本語↔英語の双方向自動翻訳を実現する
-- Ollama（ローカル）とClaude API（リモート）の切り替えによるプライバシー/精度のトレードオフを提供する
+- Ollama（ローカル）による高速かつプライバシー重視の翻訳を提供する
 - 50MB以下の軽量アプリ、3秒以内の翻訳完了を達成する
 
 ### Non-Goals
@@ -50,8 +50,6 @@ graph TB
 
     subgraph External[External Services]
         Ollama[Ollama localhost 11434]
-        ClaudeAPI[Claude API]
-        macOSKeychain[macOS Keychain]
     end
 
     App --> TranslationPopup
@@ -66,9 +64,6 @@ graph TB
     ShortcutHandler -->|trigger| ClipboardManager
     ClipboardManager -->|text| TranslationService
     TranslationService --> Ollama
-    TranslationService --> ClaudeAPI
-    SettingsStore --> KeychainManager
-    KeychainManager --> macOSKeychain
 ```
 
 **Architecture Integration**:
@@ -101,7 +96,7 @@ sequenceDiagram
     participant ClipboardManager
     participant Frontend
     participant TranslationService
-    participant LLM as Ollama/Claude
+    participant LLM as Ollama
 
     User->>macOS: Cmd+Shift+T press
     macOS->>ShortcutHandler: Shortcut event
@@ -266,19 +261,18 @@ pub enum ClipboardError {
 
 | Field | Detail |
 |-------|--------|
-| Intent | Ollama/Claude APIを使用してテキスト翻訳を実行する |
-| Requirements | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 7.1, 7.2, 7.3, 7.4, 7.5 |
+| Intent | Ollama APIを使用してテキスト翻訳を実行する |
+| Requirements | 4.1, 4.2, 4.3, 4.4, 7.1, 7.2, 7.3, 7.4 |
 
 **Responsibilities & Constraints**
-- LLMプロバイダー（Ollama/Claude）の選択と切り替え
+- Ollamaを使用した翻訳の実行
 - 翻訳プロンプトの構築
-- タイムアウト処理（10秒）
+- タイムアウト処理（60秒）
 - 翻訳結果からの不要テキスト除去
 
 **Dependencies**
 - External: reqwest — HTTP通信 (P0)
-- Inbound: SettingsStore — LLM設定取得 (P1)
-- Inbound: KeychainManager — Claude APIキー取得 (P1)
+- Inbound: SettingsStore — Ollama設定取得 (P1)
 
 **Contracts**: Service [x]
 
@@ -294,8 +288,8 @@ pub trait TranslationService {
         target_lang: Language,
     ) -> Result<TranslationResult, TranslationError>;
 
-    /// LLMプロバイダーの接続状態を確認
-    async fn check_provider_status(&self, provider: LlmProvider) -> ProviderStatus;
+    /// Ollamaの接続状態を確認
+    async fn check_ollama_status(&self) -> ProviderStatus;
 }
 
 #[derive(Debug, Clone)]
@@ -303,7 +297,6 @@ pub struct TranslationResult {
     pub translated_text: String,
     pub source_lang: Language,
     pub target_lang: Language,
-    pub provider: LlmProvider,
     pub duration_ms: u64,
 }
 
@@ -311,12 +304,6 @@ pub struct TranslationResult {
 pub enum Language {
     Japanese,
     English,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LlmProvider {
-    Ollama,
-    Claude,
 }
 
 #[derive(Debug)]
@@ -339,7 +326,7 @@ pub enum TranslationError {
 ```
 
 **Implementation Notes**
-- Integration: Ollamaは`localhost:11434/api/chat`、Claudeは`api.anthropic.com/v1/messages`
+- Integration: Ollamaは`localhost:11434/api/chat`エンドポイントを使用
 - Validation: レスポンスから翻訳結果のみを抽出（LLMの前置き除去）
 - Risks: Ollamaモデル未ダウンロード時のエラーハンドリング
 
@@ -350,7 +337,7 @@ pub enum TranslationError {
 | Field | Detail |
 |-------|--------|
 | Intent | アプリケーション設定を永続化する |
-| Requirements | 8.1, 8.2, 8.3, 8.4, 8.5, 8.6 |
+| Requirements | 8.1, 8.2, 8.3, 8.4, 8.5 |
 
 **Responsibilities & Constraints**
 - JSON形式での設定保存
@@ -379,7 +366,6 @@ pub trait SettingsService {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub shortcut: String,
-    pub llm_provider: LlmProvider,
     pub ollama_model: String,
     pub ollama_endpoint: String,
 }
@@ -387,8 +373,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            shortcut: "CommandOrControl+Shift+T".to_string(),
-            llm_provider: LlmProvider::Ollama,
+            shortcut: "CommandOrControl+J".to_string(),
             ollama_model: "qwen2.5:3b".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
         }
@@ -398,53 +383,6 @@ impl Default for AppSettings {
 
 ---
 
-#### KeychainManager
-
-| Field | Detail |
-|-------|--------|
-| Intent | Claude APIキーをmacOS Keychainに安全に保存・取得する |
-| Requirements | 8.7, 9.4 |
-
-**Responsibilities & Constraints**
-- Keychainへのパスワード保存
-- Keychainからのパスワード取得
-- 署名要件への対応
-
-**Dependencies**
-- External: security-framework — Keychainアクセス (P0)
-
-**Contracts**: Service [x]
-
-##### Service Interface
-
-```rust
-pub trait KeychainService {
-    /// APIキーを保存
-    fn save_api_key(&self, service: &str, account: &str, key: &str) -> Result<(), KeychainError>;
-
-    /// APIキーを取得
-    fn get_api_key(&self, service: &str, account: &str) -> Result<Option<String>, KeychainError>;
-
-    /// APIキーを削除
-    fn delete_api_key(&self, service: &str, account: &str) -> Result<(), KeychainError>;
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum KeychainError {
-    #[error("Keychain access denied")]
-    AccessDenied,
-    #[error("Item not found")]
-    NotFound,
-    #[error("Keychain operation failed: {0}")]
-    OperationFailed(String),
-}
-```
-
-**Implementation Notes**
-- Integration: service名は"com.honnyaku.translation", accountは"claude_api_key"
-- Risks: 開発時（未署名アプリ）はKeychain制限あり、フォールバックとして環境変数を検討
-
----
 
 ### Frontend Layer
 
@@ -496,13 +434,12 @@ interface TranslationPopupState {
 | Field | Detail |
 |-------|--------|
 | Intent | アプリケーション設定UIを提供する |
-| Requirements | 8.3, 8.4, 8.5, 8.6 |
+| Requirements | 8.3, 8.4, 8.5 |
 
 **Responsibilities & Constraints**
 - ショートカットキー設定
-- LLMプロバイダー選択
-- Claude APIキー入力
 - Ollamaモデル設定
+- Ollamaエンドポイント設定
 
 **Dependencies**
 - Inbound: useSettings — 設定状態とアクション (P0)
@@ -516,15 +453,13 @@ interface SettingsPanelProps {
   settings: AppSettings;
   providerStatus: ProviderStatus;
   onSave: (settings: AppSettings) => Promise<void>;
-  onTestConnection: (provider: LlmProvider) => Promise<ProviderStatus>;
+  onTestConnection: () => Promise<ProviderStatus>;
 }
 
 interface AppSettings {
   shortcut: string;
-  llmProvider: 'ollama' | 'claude';
   ollamaModel: string;
   ollamaEndpoint: string;
-  claudeApiKey: string; // マスク表示、保存時はKeychain経由
 }
 ```
 
@@ -603,20 +538,17 @@ classDiagram
         +String text
         +Language sourceLang
         +Language targetLang
-        +LlmProvider provider
     }
 
     class TranslationResult {
         +String translatedText
         +Language sourceLang
         +Language targetLang
-        +LlmProvider provider
         +u64 durationMs
     }
 
     class AppSettings {
         +String shortcut
-        +LlmProvider llmProvider
         +String ollamaModel
         +String ollamaEndpoint
     }
@@ -627,17 +559,8 @@ classDiagram
         English
     }
 
-    class LlmProvider {
-        <<enumeration>>
-        Ollama
-        Claude
-    }
-
     TranslationRequest --> Language
-    TranslationRequest --> LlmProvider
     TranslationResult --> Language
-    TranslationResult --> LlmProvider
-    AppSettings --> LlmProvider
 ```
 
 ### Logical Data Model
@@ -645,17 +568,11 @@ classDiagram
 **Settings Store (JSON)**:
 ```json
 {
-  "shortcut": "CommandOrControl+Shift+T",
-  "llm_provider": "ollama",
+  "shortcut": "CommandOrControl+J",
   "ollama_model": "qwen2.5:3b",
   "ollama_endpoint": "http://localhost:11434"
 }
 ```
-
-**Keychain Entry**:
-- Service: `com.honnyaku.translation`
-- Account: `claude_api_key`
-- Value: (encrypted API key)
 
 ## Error Handling
 
@@ -667,10 +584,9 @@ classDiagram
 
 **User Errors (4xx equivalent)**:
 - 空のクリップボード → 「翻訳するテキストが選択されていません」
-- 無効なAPIキー → 「APIキーが無効です。設定を確認してください」
 
 **System Errors (5xx equivalent)**:
-- Ollama未起動 → 「Ollamaが起動していません。起動するか、Claude APIに切り替えてください」
+- Ollama未起動 → 「Ollamaが起動していません。Ollamaを起動してください」
 - ネットワークエラー → 「接続に失敗しました。ネットワーク設定を確認してください」
 - タイムアウト → 「翻訳がタイムアウトしました。再試行してください」
 
@@ -693,8 +609,7 @@ classDiagram
 ### Integration Tests
 
 - **Shortcut → Clipboard → Translation フロー**: E2Eでの翻訳フロー
-- **Settings変更 → 翻訳プロバイダー切り替え**: 設定変更の即時反映
-- **Keychain API統合**: APIキーの保存・取得
+- **Settings変更 → Ollama設定更新**: 設定変更の即時反映
 
 ### E2E/UI Tests
 
@@ -704,10 +619,9 @@ classDiagram
 
 ## Security Considerations
 
-- **APIキー保護**: Claude APIキーはmacOS Keychainに保存、環境変数やファイルに保存しない
-- **通信暗号化**: Claude APIとの通信はHTTPS必須
 - **権限管理**: アクセシビリティ権限は明示的にユーザーに説明しリクエスト
-- **ログマスキング**: APIキーやセンシティブデータはログ出力時にマスク処理
+- **ログマスキング**: センシティブデータはログ出力時にマスク処理
+- **ローカル処理**: Ollamaによるローカル翻訳でプライバシーを保護
 
 ## Performance & Scalability
 
