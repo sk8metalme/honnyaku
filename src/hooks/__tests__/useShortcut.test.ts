@@ -137,7 +137,9 @@ describe('useShortcut', () => {
 
     let isValid = false;
     await act(async () => {
-      isValid = await result.current.validateShortcut('CommandOrControl+Shift+T');
+      isValid = await result.current.validateShortcut(
+        'CommandOrControl+Shift+T'
+      );
     });
 
     expect(isValid).toBe(true);
@@ -246,7 +248,9 @@ describe('useShortcut', () => {
     // 登録を開始
     let registerPromise: Promise<void>;
     act(() => {
-      registerPromise = result.current.registerShortcut('CommandOrControl+Shift+T');
+      registerPromise = result.current.registerShortcut(
+        'CommandOrControl+Shift+T'
+      );
     });
 
     // isLoadingがtrueになることを確認

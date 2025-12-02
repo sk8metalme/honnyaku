@@ -37,6 +37,7 @@ pub enum SettingsError {
     #[error("設定ストアが初期化されていません")]
     #[allow(dead_code)]
     StoreNotInitialized,
+    #[allow(dead_code)]
     #[error("シリアライズエラー: {0}")]
     SerializationError(String),
 }

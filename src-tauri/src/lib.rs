@@ -8,9 +8,7 @@ use services::clipboard::{ClipboardContent, ClipboardError};
 use services::permissions::PermissionStatus;
 use services::settings::{AppSettings, SettingsError};
 use services::shortcut::{self, ShortcutError, ShortcutStatus};
-use services::translation::{
-    self, Language, ProviderStatus, TranslationError, TranslationResult,
-};
+use services::translation::{self, Language, ProviderStatus, TranslationError, TranslationResult};
 
 /// Greet command for testing IPC
 #[tauri::command]
@@ -26,14 +24,12 @@ fn greet(name: &str) -> String {
 ///
 /// tauri-plugin-storeから設定を読み込み、存在しない場合はデフォルト値を返す
 #[tauri::command]
-async fn get_settings(
-    app: tauri::AppHandle,
-) -> Result<AppSettings, SettingsError> {
+async fn get_settings(app: tauri::AppHandle) -> Result<AppSettings, SettingsError> {
     use tauri_plugin_store::StoreExt;
 
-    let store = app.store("settings.json").map_err(|e| {
-        SettingsError::LoadFailed(e.to_string())
-    })?;
+    let store = app
+        .store("settings.json")
+        .map_err(|e| SettingsError::LoadFailed(e.to_string()))?;
 
     let shortcut = store
         .get("shortcut")
@@ -59,21 +55,23 @@ async fn get_settings(
 
 /// 設定を保存する
 #[tauri::command]
-async fn save_settings(
-    app: tauri::AppHandle,
-    settings: AppSettings,
-) -> Result<(), SettingsError> {
+async fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), SettingsError> {
     use tauri_plugin_store::StoreExt;
 
-    let store = app.store("settings.json").map_err(|e| {
-        SettingsError::SaveFailed(e.to_string())
-    })?;
+    let store = app
+        .store("settings.json")
+        .map_err(|e| SettingsError::SaveFailed(e.to_string()))?;
 
     store.set("shortcut", serde_json::json!(settings.shortcut));
     store.set("ollamaModel", serde_json::json!(settings.ollama_model));
-    store.set("ollamaEndpoint", serde_json::json!(settings.ollama_endpoint));
+    store.set(
+        "ollamaEndpoint",
+        serde_json::json!(settings.ollama_endpoint),
+    );
 
-    store.save().map_err(|e| SettingsError::SaveFailed(e.to_string()))?;
+    store
+        .save()
+        .map_err(|e| SettingsError::SaveFailed(e.to_string()))?;
 
     Ok(())
 }
@@ -129,9 +127,7 @@ async fn translate(
 
 /// Ollamaの接続状態を確認する
 #[tauri::command]
-async fn check_provider_status(
-    app: tauri::AppHandle,
-) -> ProviderStatus {
+async fn check_provider_status(app: tauri::AppHandle) -> ProviderStatus {
     use tauri_plugin_store::StoreExt;
 
     let ollama_endpoint = app
@@ -205,13 +201,11 @@ fn get_shortcut_status(app: tauri::AppHandle) -> ShortcutStatus {
 fn get_current_shortcut_from_settings(app: &tauri::AppHandle) -> Option<String> {
     use tauri_plugin_store::StoreExt;
 
-    app.store("settings.json")
-        .ok()
-        .and_then(|store| {
-            store
-                .get("shortcut")
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-        })
+    app.store("settings.json").ok().and_then(|store| {
+        store
+            .get("shortcut")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    })
 }
 
 /// グローバルショートカットを登録する

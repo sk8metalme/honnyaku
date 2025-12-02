@@ -117,7 +117,10 @@ export interface UseTranslationFlowReturn {
  */
 export function useTranslationFlow(options?: {
   autoStart?: boolean;
-  onTranslationComplete?: (result: { original: string; translated: string }) => void;
+  onTranslationComplete?: (result: {
+    original: string;
+    translated: string;
+  }) => void;
   onError?: (error: TranslationFlowError) => void;
 }): UseTranslationFlowReturn {
   const { autoStart = true, onTranslationComplete, onError } = options ?? {};
@@ -265,7 +268,7 @@ export function useTranslationFlow(options?: {
       try {
         unlisten = await listen('shortcut-triggered', () => {
           if (isShortcutEnabled) {
-            startFlow();
+            void startFlow();
           }
         });
       } catch (err) {
@@ -273,7 +276,7 @@ export function useTranslationFlow(options?: {
       }
     }
 
-    setupListener();
+    void setupListener();
 
     return () => {
       unlisten?.();

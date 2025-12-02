@@ -30,9 +30,7 @@ describe('detectLanguage', () => {
     });
 
     it('混合テキスト（日本語+英語）を日本語と判定する', () => {
-      const result = detectLanguage(
-        'このAPIはとても使いやすいです。'
-      );
+      const result = detectLanguage('このAPIはとても使いやすいです。');
       expect(result.language).toBe('ja');
       expect(result.confidence).toBeGreaterThan(0.5);
     });

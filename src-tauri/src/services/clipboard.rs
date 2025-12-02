@@ -12,8 +12,10 @@ pub enum ClipboardError {
     ReadFailed(String),
     #[error("クリップボードへの書き込みに失敗しました: {0}")]
     WriteFailed(String),
+    #[allow(dead_code)]
     #[error("クリップボードが空です")]
     Empty,
+    #[allow(dead_code)]
     #[error("クリップボードにテキストがありません")]
     NoText,
 }
@@ -62,10 +64,16 @@ mod tests {
     #[test]
     fn test_clipboard_error_display() {
         let err = ClipboardError::ReadFailed("テスト".to_string());
-        assert_eq!(err.to_string(), "クリップボードの読み取りに失敗しました: テスト");
+        assert_eq!(
+            err.to_string(),
+            "クリップボードの読み取りに失敗しました: テスト"
+        );
 
         let err = ClipboardError::WriteFailed("テスト".to_string());
-        assert_eq!(err.to_string(), "クリップボードへの書き込みに失敗しました: テスト");
+        assert_eq!(
+            err.to_string(),
+            "クリップボードへの書き込みに失敗しました: テスト"
+        );
 
         let err = ClipboardError::Empty;
         assert_eq!(err.to_string(), "クリップボードが空です");

@@ -27,7 +27,7 @@ export const UNICODE_RANGES = {
  * 日本語文字を検出する正規表現
  */
 const JAPANESE_CHAR_REGEX = new RegExp(
-  `[${'\u3040-\u309F'}${'\u30A0-\u30FF'}${'\u4E00-\u9FFF'}${'\u3000-\u303F'}${'\uFF65-\uFF9F'}]`,
+  `[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3000-\u303F\uFF65-\uFF9F]`,
   'g'
 );
 

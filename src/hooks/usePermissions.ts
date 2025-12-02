@@ -105,7 +105,7 @@ export function usePermissions(): UsePermissionsReturn {
 
   // 初回マウント時に権限を確認
   useEffect(() => {
-    checkAccessibility();
+    void checkAccessibility();
   }, [checkAccessibility]);
 
   return {

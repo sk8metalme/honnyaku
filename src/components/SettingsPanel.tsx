@@ -7,7 +7,7 @@
  * - 接続テスト
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useShortcut } from '@/hooks/useShortcut';
@@ -26,11 +26,31 @@ export interface SettingsPanelProps {
  * Ollamaモデルオプション
  */
 const OLLAMA_MODEL_OPTIONS = [
-  { value: 'qwen2.5:0.5b', label: 'qwen2.5:0.5b (最速・395MB)', description: '最速だが品質は低め' },
-  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (高速・986MB)', description: '速度と品質のバランス' },
-  { value: 'qwen2.5:3b', label: 'qwen2.5:3b (標準・1.9GB)', description: '標準的な品質' },
-  { value: 'qwen2.5:7b', label: 'qwen2.5:7b (高品質・4.7GB)', description: '高品質だが遅め' },
-  { value: 'abeja-qwen2.5-7b-jp:latest', label: 'ABEJA-Qwen2.5-7b-Japanese (日本語特化・4.7GB)', description: '日本語に特化した高品質モデル' },
+  {
+    value: 'qwen2.5:0.5b',
+    label: 'qwen2.5:0.5b (最速・395MB)',
+    description: '最速だが品質は低め',
+  },
+  {
+    value: 'qwen2.5:1.5b',
+    label: 'qwen2.5:1.5b (高速・986MB)',
+    description: '速度と品質のバランス',
+  },
+  {
+    value: 'qwen2.5:3b',
+    label: 'qwen2.5:3b (標準・1.9GB)',
+    description: '標準的な品質',
+  },
+  {
+    value: 'qwen2.5:7b',
+    label: 'qwen2.5:7b (高品質・4.7GB)',
+    description: '高品質だが遅め',
+  },
+  {
+    value: 'abeja-qwen2.5-7b-jp:latest',
+    label: 'ABEJA-Qwen2.5-7b-Japanese (日本語特化・4.7GB)',
+    description: '日本語に特化した高品質モデル',
+  },
 ];
 
 /**
@@ -57,7 +77,9 @@ function InputField({
       <input
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
         placeholder={placeholder}
         disabled={disabled}
         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition"
@@ -89,7 +111,9 @@ function SelectField({
       </label>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
         disabled={disabled}
         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition"
       >
@@ -99,11 +123,14 @@ function SelectField({
           </option>
         ))}
       </select>
-      {options.find((o) => o.value === value)?.description && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {options.find((o) => o.value === value)?.description}
-        </p>
-      )}
+      {(() => {
+        const selected = options.find((o) => o.value === value);
+        return selected?.description ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {selected.description}
+          </p>
+        ) : null;
+      })()}
     </div>
   );
 }
@@ -137,7 +164,9 @@ export function ToggleSwitch({
       <button
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
+        onClick={() => {
+          onChange(!checked);
+        }}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
           checked ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
         }`}
@@ -156,16 +185,9 @@ export function ToggleSwitch({
  * 設定画面コンポーネント
  */
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const {
-    settings,
-    updateSettings,
-    checkProviderStatus,
-  } = useSettings();
+  const { settings, updateSettings, checkProviderStatus } = useSettings();
 
-  const {
-    isAccessibilityGranted,
-    requestAccessibility,
-  } = usePermissions();
+  const { isAccessibilityGranted, requestAccessibility } = usePermissions();
 
   const {
     isRegistered: shortcutRegistered,
@@ -174,21 +196,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     validateShortcut,
   } = useShortcut();
 
-  // ローカル状態
-  const [shortcutInput, setShortcutInput] = useState('');
-  const [ollamaModelInput, setOllamaModelInput] = useState('');
-  const [ollamaEndpointInput, setOllamaEndpointInput] = useState('');
-  const [providerStatus, setProviderStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
+  // ローカル状態（settingsから初期値を取得）
+  const [shortcutInput, setShortcutInput] = useState(() => settings.shortcut);
+  const [ollamaModelInput, setOllamaModelInput] = useState(
+    () => settings.ollamaModel
+  );
+  const [ollamaEndpointInput, setOllamaEndpointInput] = useState(
+    () => settings.ollamaEndpoint
+  );
+  const [providerStatus, setProviderStatus] = useState<
+    'checking' | 'available' | 'unavailable' | null
+  >(null);
   const [statusMessage, setStatusMessage] = useState('');
-
-  // 設定が読み込まれたらローカル状態を更新
-  useEffect(() => {
-    if (settings) {
-      setShortcutInput(settings.shortcut);
-      setOllamaModelInput(settings.ollamaModel);
-      setOllamaEndpointInput(settings.ollamaEndpoint);
-    }
-  }, [settings]);
 
   // ショートカット変更
   const handleShortcutChange = useCallback(async () => {
@@ -202,7 +221,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
     try {
       // 既存のショートカットを解除
-      if (settings?.shortcut && shortcutRegistered) {
+      if (settings.shortcut && shortcutRegistered) {
         await unregisterShortcut(settings.shortcut);
       }
 
@@ -212,10 +231,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       // 設定を保存
       await updateSettings({ shortcut: shortcutInput });
       setStatusMessage('ショートカットを更新しました');
-    } catch (err) {
+    } catch {
       setStatusMessage('ショートカットの登録に失敗しました');
     }
-  }, [shortcutInput, settings, shortcutRegistered, validateShortcut, unregisterShortcut, registerShortcut, updateSettings]);
+  }, [
+    shortcutInput,
+    settings,
+    shortcutRegistered,
+    validateShortcut,
+    unregisterShortcut,
+    registerShortcut,
+    updateSettings,
+  ]);
 
   // Ollama設定保存
   const handleSaveOllamaSettings = useCallback(async () => {
@@ -225,7 +252,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         ollamaEndpoint: ollamaEndpointInput,
       });
       setStatusMessage('Ollama設定を保存しました');
-    } catch (err) {
+    } catch {
       setStatusMessage('設定の保存に失敗しました');
     }
   }, [ollamaModelInput, ollamaEndpointInput, updateSettings]);
@@ -287,11 +314,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* ステータスメッセージ */}
           {statusMessage && (
-            <div className={`p-3 rounded-lg text-sm ${
-              statusMessage.includes('失敗') || statusMessage.includes('エラー')
-                ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-            }`}>
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                statusMessage.includes('失敗') ||
+                statusMessage.includes('エラー')
+                  ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                  : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+              }`}
+            >
               {statusMessage}
             </div>
           )}
@@ -303,16 +333,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </h3>
             <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${
-                  isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
-                }`} />
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   {isAccessibilityGranted ? '許可済み' : '許可されていません'}
                 </span>
               </div>
               {!isAccessibilityGranted && (
                 <button
-                  onClick={requestAccessibility}
+                  onClick={() => {
+                    void requestAccessibility();
+                  }}
                   className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
                 >
                   許可をリクエスト
@@ -330,19 +364,23 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <input
                 type="text"
                 value={shortcutInput}
-                onChange={(e) => setShortcutInput(e.target.value)}
+                onChange={(e) => {
+                  setShortcutInput(e.target.value);
+                }}
                 placeholder="例: CommandOrControl+Shift+T"
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
               <button
-                onClick={handleShortcutChange}
+                onClick={() => {
+                  void handleShortcutChange();
+                }}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
               >
                 変更
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              現在: {settings?.shortcut || '未設定'}
+              現在: {settings.shortcut}
               {shortcutRegistered && ' (登録済み)'}
             </p>
           </section>
@@ -366,7 +404,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 options={OLLAMA_MODEL_OPTIONS}
               />
               <button
-                onClick={handleSaveOllamaSettings}
+                onClick={() => {
+                  void handleSaveOllamaSettings();
+                }}
                 className="w-full px-4 py-2 bg-gray-800 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white text-sm rounded-lg transition-colors"
               >
                 Ollama設定を保存
@@ -380,7 +420,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               接続テスト
             </h3>
             <button
-              onClick={handleTestConnection}
+              onClick={() => {
+                void handleTestConnection();
+              }}
               disabled={providerStatus === 'checking'}
               className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -394,12 +436,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               )}
             </button>
             {providerStatus && providerStatus !== 'checking' && (
-              <div className={`mt-2 flex items-center gap-2 ${
-                providerStatus === 'available' ? 'text-green-500' : 'text-red-500'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${
-                  providerStatus === 'available' ? 'bg-green-500' : 'bg-red-500'
-                }`} />
+              <div
+                className={`mt-2 flex items-center gap-2 ${
+                  providerStatus === 'available'
+                    ? 'text-green-500'
+                    : 'text-red-500'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    providerStatus === 'available'
+                      ? 'bg-green-500'
+                      : 'bg-red-500'
+                  }`}
+                />
                 <span className="text-sm">
                   {providerStatus === 'available' ? '接続成功' : '接続失敗'}
                 </span>

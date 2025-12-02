@@ -44,7 +44,9 @@ pub struct TranslationResult {
 pub enum ProviderStatus {
     Available,
     #[serde(rename = "unavailable")]
-    Unavailable { reason: String },
+    Unavailable {
+        reason: String,
+    },
 }
 
 /// 翻訳エラー
@@ -198,7 +200,6 @@ pub async fn check_ollama_status(endpoint: &str) -> ProviderStatus {
         },
     }
 }
-
 
 /// Ollamaモデルをプリロード（ウォームアップ）
 ///

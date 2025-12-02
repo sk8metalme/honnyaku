@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Run backend tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Honnyaku v__VERSION__'
+          releaseBody: |
+            ## 変更内容
+
+            リリースノートについては[CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)を参照してください。
+
+            ## インストール方法
+
+            ### macOS (Apple Silicon)
+            1. `honnyaku_${{ github.ref_name }}_aarch64.dmg` をダウンロード
+            2. DMGファイルを開き、Honnyaku.appをアプリケーションフォルダにドラッグ
+            3. アプリケーションフォルダからHonnyakuを起動
+
+            ### 必要要件
+            - macOS 12.0 (Monterey) 以上
+            - [Ollama](https://ollama.ai) のインストールと設定
+            - アクセシビリティ権限の許可
+
+            詳細は[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)を参照してください。
+          releaseDraft: false
+          prerelease: false
