@@ -50,12 +50,9 @@ docs/tmp/
 *.cache
 
 # Claude Code internal files
-.claude/agents/
 .claude/.cache/
 
 # Kiro Spec-Driven Development temporary files
-.kiro/specs/*/test-specs/
-.kiro/specs/*/test-type-selection.json
 .kiro/.cache/
 
 # Test coverage

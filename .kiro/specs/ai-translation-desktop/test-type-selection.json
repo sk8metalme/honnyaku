@@ -1,0 +1,57 @@
+{
+  "feature": "ai-translation-desktop",
+  "selectedTypes": [
+    "unit",
+    "lint",
+    "build",
+    "integration",
+    "e2e",
+    "performance",
+    "security"
+  ],
+  "selectedAt": "2025-12-01T23:53:17.765Z",
+  "testTypes": {
+    "unit": {
+      "enabled": true,
+      "required": true,
+      "phase": "A",
+      "description": "単体テスト"
+    },
+    "lint": {
+      "enabled": true,
+      "required": true,
+      "phase": "A",
+      "description": "Lint実行"
+    },
+    "build": {
+      "enabled": true,
+      "required": true,
+      "phase": "A",
+      "description": "ビルド実行"
+    },
+    "integration": {
+      "enabled": true,
+      "required": false,
+      "phase": "B",
+      "description": "統合テスト"
+    },
+    "e2e": {
+      "enabled": true,
+      "required": false,
+      "phase": "B",
+      "description": "E2Eテスト"
+    },
+    "performance": {
+      "enabled": true,
+      "required": false,
+      "phase": "B",
+      "description": "性能テスト"
+    },
+    "security": {
+      "enabled": true,
+      "required": false,
+      "phase": "B",
+      "description": "セキュリティテスト"
+    }
+  }
+}
