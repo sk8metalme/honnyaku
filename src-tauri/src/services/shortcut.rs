@@ -14,6 +14,7 @@ pub enum ShortcutError {
     UnregistrationFailed(String),
     #[error("無効なショートカット形式です: {0}")]
     InvalidFormat(String),
+    #[allow(dead_code)]
     #[error("ショートカットが競合しています: {0}")]
     Conflict(String),
 }
@@ -28,22 +29,13 @@ impl Serialize for ShortcutError {
 }
 
 /// ショートカット登録状態
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShortcutStatus {
     /// 現在登録されているショートカット
     pub current_shortcut: Option<String>,
     /// 登録されているかどうか
     pub is_registered: bool,
-}
-
-impl Default for ShortcutStatus {
-    fn default() -> Self {
-        Self {
-            current_shortcut: None,
-            is_registered: false,
-        }
-    }
 }
 
 /// ショートカット文字列を検証する
@@ -63,9 +55,7 @@ pub fn validate_shortcut(shortcut: &str) -> Result<(), ShortcutError> {
     // 基本的な形式チェック
     let parts: Vec<&str> = shortcut.split('+').collect();
     if parts.is_empty() {
-        return Err(ShortcutError::InvalidFormat(
-            "無効な形式です".to_string(),
-        ));
+        return Err(ShortcutError::InvalidFormat("無効な形式です".to_string()));
     }
 
     // 最後のパートがキーである必要がある
@@ -93,9 +83,7 @@ pub fn validate_shortcut(shortcut: &str) -> Result<(), ShortcutError> {
 
     // 修飾キーの検証（最後のパート以外）
     for part in &parts[..parts.len() - 1] {
-        let is_valid_modifier = valid_modifiers
-            .iter()
-            .any(|m| m.eq_ignore_ascii_case(part));
+        let is_valid_modifier = valid_modifiers.iter().any(|m| m.eq_ignore_ascii_case(part));
         if !is_valid_modifier {
             return Err(ShortcutError::InvalidFormat(format!(
                 "無効な修飾キー: {}",
