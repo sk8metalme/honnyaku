@@ -5,7 +5,7 @@
 本ドキュメントは、Nani風AI翻訳デスクトップアプリの機能要件を定義します。このアプリケーションは、macOSユーザーがグローバルショートカットキーを使用して、任意のアプリケーションで選択したテキストを即座に翻訳できるデスクトップツールです。
 
 **対象ユーザー**: macOSを使用する個人ユーザー（開発者、翻訳者、一般ユーザー）
-**技術スタック**: Tauri v2 + React + TypeScript、Ollama（ローカルLLM）/ Claude API（リモートLLM）
+**技術スタック**: Tauri v2 + React + TypeScript、Ollama（ローカルLLM）
 **対応言語ペア（MVP）**: 日本語 ↔ 英語
 **対応言語ペア（将来）**: 日本語 ↔ 韓国語、英語 ↔ 韓国語
 
@@ -52,12 +52,11 @@
 
 #### Acceptance Criteria
 
-1. When 翻訳リクエストが発生した時, the 翻訳アプリ shall 設定されたLLMプロバイダー（OllamaまたはClaude API）に翻訳リクエストを送信する
+1. When 翻訳リクエストが発生した時, the 翻訳アプリ shall Ollama APIに翻訳リクエストを送信する
 2. When Ollamaが選択されている時, the 翻訳アプリ shall localhost:11434のOllama APIにリクエストを送信する
-3. When Claude APIが選択されている時, the 翻訳アプリ shall api.anthropic.comにHTTPSでリクエストを送信する
-4. If LLMからの応答がタイムアウトした場合（10秒）, the 翻訳アプリ shall タイムアウトエラーをユーザーに通知する
-5. If LLM接続に失敗した場合, the 翻訳アプリ shall 接続エラーメッセージを表示し、設定の確認を促す
-6. The 翻訳アプリ shall 翻訳結果のみを返し、LLMの説明文や前置きを除去する
+3. If LLMからの応答がタイムアウトした場合（60秒）, the 翻訳アプリ shall タイムアウトエラーをユーザーに通知する
+4. If LLM接続に失敗した場合, the 翻訳アプリ shall 接続エラーメッセージを表示し、設定の確認を促す
+5. The 翻訳アプリ shall 翻訳結果のみを返し、LLMの説明文や前置きを除去する
 
 ### Requirement 5: ポップアップ表示機能
 
@@ -84,17 +83,17 @@
 3. When ユーザーがCmd+Cを押下した時（ポップアップフォーカス中）, the 翻訳アプリ shall 翻訳結果をクリップボードにコピーする
 4. The 翻訳アプリ shall コピー後もポップアップを自動で閉じない（ユーザー操作を待つ）
 
-### Requirement 7: LLMプロバイダー切り替え機能
+### Requirement 7: Ollama設定機能
 
-**Objective:** As a ユーザー, I want OllamaとClaude APIを切り替えたい, so that 用途に応じて最適なLLMを選択できる
+**Objective:** As a ユーザー, I want Ollamaの設定をカスタマイズしたい, so that 用途に応じて最適なモデルとエンドポイントを選択できる
 
 #### Acceptance Criteria
 
-1. When ユーザーが設定画面でLLMプロバイダーを変更した時, the 翻訳アプリ shall 次回の翻訳から選択されたプロバイダーを使用する
-2. Where Ollamaが選択されている場合, the 翻訳アプリ shall Ollamaの接続状態を確認し、利用可能かどうかを表示する
-3. Where Claude APIが選択されている場合, the 翻訳アプリ shall APIキーが設定されているか確認する
-4. If Ollamaが起動していない場合, the 翻訳アプリ shall 「Ollamaが起動していません」と警告を表示する
-5. The 翻訳アプリ shall デフォルトでOllama（ローカル）を使用する
+1. When ユーザーが設定画面でOllamaモデルを変更した時, the 翻訳アプリ shall 次回の翻訳から選択されたモデルを使用する
+2. The 翻訳アプリ shall Ollamaの接続状態を確認し、利用可能かどうかを表示する
+3. If Ollamaが起動していない場合, the 翻訳アプリ shall 「Ollamaが起動していません」と警告を表示する
+4. The 翻訳アプリ shall Ollamaエンドポイントのカスタマイズを許可する
+5. The 翻訳アプリ shall デフォルトで localhost:11434 を使用する
 
 ### Requirement 8: 設定管理機能
 
@@ -105,10 +104,8 @@
 1. When ユーザーが設定を変更した時, the 翻訳アプリ shall 設定をローカルストレージに永続化する
 2. When アプリが起動した時, the 翻訳アプリ shall 保存された設定を読み込む
 3. The 設定画面 shall ショートカットキーのカスタマイズを提供する
-4. The 設定画面 shall LLMプロバイダーの選択を提供する
-5. The 設定画面 shall Claude APIキーの入力フィールドを提供する
-6. The 設定画面 shall Ollamaで使用するモデル名の設定を提供する
-7. If Claude APIキーが入力された場合, the 翻訳アプリ shall APIキーをmacOS Keychainに安全に保存する
+4. The 設定画面 shall Ollamaで使用するモデル名の設定を提供する
+5. The 設定画面 shall Ollamaエンドポイントの設定を提供する
 
 ### Requirement 9: 非機能要件
 
@@ -118,9 +115,6 @@
 
 1. The 翻訳アプリ shall ショートカット押下から翻訳結果表示まで3秒以内（Ollama使用時、ローカルネットワーク）に完了する
 2. The 翻訳アプリ shall アイドル時のメモリ使用量を100MB以下に維持する
-3. The 翻訳アプリ shall Claude APIとの通信にHTTPSを使用する
-4. The 翻訳アプリ shall Claude APIキーをプレーンテキストでファイルに保存しない
-5. While オフライン状態の場合, the 翻訳アプリ shall Ollama（ローカル）のみを利用可能とし、Claude APIエラーを適切に処理する
-6. The 翻訳アプリ shall macOS 12.0（Monterey）以上で動作する
-7. The 翻訳アプリ shall 初回起動時にアクセシビリティ権限のリクエストダイアログを表示する
-8. The 翻訳アプリ shall アプリサイズを50MB以下に維持する
+3. The 翻訳アプリ shall macOS 12.0（Monterey）以上で動作する
+4. The 翻訳アプリ shall 初回起動時にアクセシビリティ権限のリクエストダイアログを表示する
+5. The 翻訳アプリ shall アプリサイズを50MB以下に維持する
