@@ -7,6 +7,7 @@ Honnyakuへのコントリビューションをありがとうございます！
 - [行動規範](#行動規範)
 - [開発環境のセットアップ](#開発環境のセットアップ)
 - [開発ワークフロー](#開発ワークフロー)
+- [CI/CD](#cicd)
 - [コーディング規約](#コーディング規約)
 - [テスト](#テスト)
 - [プルリクエストの提出](#プルリクエストの提出)
@@ -119,6 +120,56 @@ Honnyakuへのコントリビューションをありがとうございます！
    - mainブランチへのPRを作成
    - 変更内容を詳細に説明
    - 関連するIssueをリンク
+
+---
+
+## CI/CD
+
+### 継続的インテグレーション (CI)
+
+プルリクエストを作成すると、GitHub Actionsが自動的に以下のチェックを実行します：
+
+#### テスト
+- **フロントエンドテスト**: Vitestによる単体テスト（69テスト）
+- **バックエンドテスト**: Cargo Testによる単体テスト（26テスト）
+- **型チェック**: TypeScriptの型整合性チェック
+
+#### コード品質
+- **ESLint**: JavaScriptとTypeScriptのLinterチェック
+- **Prettier**: コードフォーマットチェック
+- **Clippy**: Rustのコード品質チェック
+- **Rustfmt**: Rustのフォーマットチェック
+
+すべてのチェックがパスしないと、PRはマージできません。
+
+### 継続的デリバリー (CD)
+
+バージョンタグ（例: `v0.1.0`）をpushすると、GitHub Actionsが自動的に以下を実行します：
+
+1. **テストの実行**: フロントエンドとバックエンドの全テスト
+2. **プロダクションビルド**: macOS用のアプリケーションバンドル作成
+3. **GitHub Release**: リリースページの自動作成
+4. **アーティファクトのアップロード**:
+   - `honnyaku_{version}_aarch64.dmg` - DMGインストーラー
+   - `honnyaku_{version}_aarch64.app.tar.gz` - アプリバンドル
+
+### リリース手順
+
+1. **CHANGELOG.mdの更新**
+   ```bash
+   # Unreleased セクションを新しいバージョンに変更
+   vim CHANGELOG.md
+   ```
+
+2. **バージョンタグの作成**
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. **リリースの確認**
+   - [GitHub Actions](https://github.com/sk8metalme/honnyaku/actions) でビルド状況を確認
+   - [Releases](https://github.com/sk8metalme/honnyaku/releases) でリリースを確認
 
 ---
 
