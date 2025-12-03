@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useSettings } from '@/hooks/useSettings';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useShortcut } from '@/hooks/useShortcut';
 
@@ -47,9 +47,14 @@ const OLLAMA_MODEL_OPTIONS = [
     description: '高品質だが遅め',
   },
   {
-    value: 'abeja-qwen2.5-7b-jp:latest',
-    label: 'ABEJA-Qwen2.5-7b-Japanese (日本語特化・4.7GB)',
-    description: '日本語に特化した高品質モデル',
+    value: 'mitmul/plamo-2-translate:Q4_K_M',
+    label: 'PLaMo-2-Translate Q4 (翻訳特化・5.6GB)',
+    description: '翻訳タスクに最適化された高品質モデル（バランス重視）',
+  },
+  {
+    value: 'mitmul/plamo-2-translate:Q2_K_S',
+    label: 'PLaMo-2-Translate Q2 (翻訳特化・3.5GB)',
+    description: '翻訳タスクに最適化（高速動作優先）',
   },
 ];
 
@@ -104,6 +109,19 @@ function SelectField({
   options: { value: string; label: string; description?: string }[];
   disabled?: boolean;
 }) {
+  // 現在の値が選択肢に存在しない場合、一時的な選択肢として追加
+  const isValueInOptions = options.some((opt) => opt.value === value);
+  const displayOptions = isValueInOptions
+    ? options
+    : [
+        {
+          value,
+          label: `${value} (非推奨 - 削除されたモデル)`,
+          description: 'このモデルは利用できません。別のモデルを選択してください。',
+        },
+        ...options,
+      ];
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -117,14 +135,14 @@ function SelectField({
         disabled={disabled}
         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition"
       >
-        {options.map((opt) => (
+        {displayOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>
         ))}
       </select>
       {(() => {
-        const selected = options.find((o) => o.value === value);
+        const selected = displayOptions.find((o) => o.value === value);
         return selected?.description ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {selected.description}
@@ -185,7 +203,7 @@ export function ToggleSwitch({
  * 設定画面コンポーネント
  */
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { settings, updateSettings, checkProviderStatus } = useSettings();
+  const { settings, updateSettings, checkProviderStatus } = useSettingsContext();
 
   const { isAccessibilityGranted, requestAccessibility } = usePermissions();
 

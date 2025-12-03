@@ -11,14 +11,14 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { useTranslationFlow } from '@/hooks/useTranslationFlow';
 import { useShortcut } from '@/hooks/useShortcut';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useSettings } from '@/hooks/useSettings';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useClipboard } from '@/hooks/useClipboard';
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Hooks
-  const { settings, isLoading: settingsLoading } = useSettings();
+  const { settings, isLoading: settingsLoading } = useSettingsContext();
   const { isAccessibilityGranted, checkAccessibility } = usePermissions();
   const { registerShortcut, isRegistered } = useShortcut();
   const { writeText } = useClipboard();

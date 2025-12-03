@@ -128,58 +128,7 @@ ollama pull qwen2.5:7b    # 高品質（4.7GB）
 | qwen2.5:3b | 1.9GB | 標準的な品質（デフォルト） |
 | qwen2.5:7b | 4.7GB | 高品質だが遅め |
 
-### 2.1 日本語特化モデル（ABEJA-Qwen2.5-7b-Japanese）のインストール
-
-日本語の翻訳品質を向上させたい場合は、日本語に特化したABEJA-Qwen2.5-7b-Japaneseモデルをインストールできます。
-
-#### GGUFファイルのダウンロード
-
-```bash
-# huggingface_hubをインストール
-pip install huggingface_hub
-
-# GGUFファイルをダウンロード（Q4_K_M推奨）
-huggingface-cli download mmnga/ABEJA-Qwen2.5-7b-Japanese-v0.1-gguf \
-  ABEJA-Qwen2.5-7b-Japanese-v0.1-Q4_K_M.gguf \
-  --local-dir .
-```
-
-#### Modelfileの作成とOllamaへの登録
-
-```bash
-# Modelfileを作成
-cat << 'EOF' > Modelfile
-FROM ./ABEJA-Qwen2.5-7b-Japanese-v0.1-Q4_K_M.gguf
-TEMPLATE """{{ if .System }}<|im_start|>system
-{{ .System }}<|im_end|>
-{{ end }}{{ if .Prompt }}<|im_start|>user
-{{ .Prompt }}<|im_end|>
-{{ end }}<|im_start|>assistant
-{{ .Response }}<|im_end|>
-"""
-PARAMETER stop <|im_start|>
-PARAMETER stop <|im_end|>
-PARAMETER stop <|endoftext|>
-EOF
-
-# Ollamaにモデルを登録
-ollama create abeja-qwen2.5-7b-jp -f Modelfile
-
-# 動作確認
-ollama run abeja-qwen2.5-7b-jp "こんにちは"
-```
-
-#### 量子化バリエーション
-
-用途に応じて異なる量子化レベルを選択できます：
-
-| ファイル名 | サイズ | 品質 | 速度 |
-|-----------|--------|------|------|
-| Q4_K_M.gguf | 約4.3GB | バランス重視（推奨） | 高速 |
-| Q5_K_M.gguf | 約5.0GB | やや高品質 | 中速 |
-| Q8_0.gguf | 約7.5GB | 高品質 | 低速 |
-
-### 2.2 PLaMo-2-Translate（翻訳特化モデル）のインストール
+### 2.1 PLaMo-2-Translate（翻訳特化モデル）のインストール
 
 [Preferred Networks社](https://www.preferred.jp/)が開発した、翻訳タスクに特化した高品質モデルです。
 
@@ -302,7 +251,6 @@ npm run tauri:build
 - **推奨**: `qwen2.5:3b`（バランス重視、1.9GB）
 - **高速**: `qwen2.5:0.5b`（最速、395MB、品質は低め）
 - **高品質**: `qwen2.5:7b`（高品質、4.7GB、遅め）
-- **日本語特化**: `abeja-qwen2.5-7b-jp`（日本語に最適化、約4.3GB）
 - **翻訳専用**: `mitmul/plamo-2-translate:Q4_K_M`（翻訳タスクに最適化、10B、約5.6GB、非商用利用推奨）
 
 ### Q: 翻訳速度を改善するには？
