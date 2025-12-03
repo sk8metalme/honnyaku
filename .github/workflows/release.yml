@@ -8,7 +8,16 @@ on:
 jobs:
   release:
     name: Build and Release
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            arch: aarch64
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            arch: x64
+    runs-on: ${{ matrix.platform }}
     permissions:
       contents: write
 
@@ -18,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Setup Rust
@@ -50,8 +59,13 @@ jobs:
 
             ## インストール方法
 
-            ### macOS (Apple Silicon)
+            ### macOS (Apple Silicon - M1/M2/M3)
             1. `honnyaku_${{ github.ref_name }}_aarch64.dmg` をダウンロード
+            2. DMGファイルを開き、Honnyaku.appをアプリケーションフォルダにドラッグ
+            3. アプリケーションフォルダからHonnyakuを起動
+
+            ### macOS (Intel Mac)
+            1. `honnyaku_${{ github.ref_name }}_x64.dmg` をダウンロード
             2. DMGファイルを開き、Honnyaku.appをアプリケーションフォルダにドラッグ
             3. アプリケーションフォルダからHonnyakuを起動
 
@@ -63,3 +77,4 @@ jobs:
             詳細は[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)を参照してください。
           releaseDraft: false
           prerelease: false
+          args: --target ${{ matrix.target }}
