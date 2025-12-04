@@ -27,7 +27,7 @@ export interface TranslationPopupProps {
   /** 翻訳時間（ミリ秒） */
   durationMs?: number | null;
   /** 閉じるボタンクリック時のコールバック */
-  onClose: () => void;
+  onClose: () => void | Promise<void>;
   /** コピーボタンクリック時のコールバック */
   onCopy?: (text: string) => void;
 }
@@ -132,7 +132,9 @@ export function TranslationPopup({
       {/* オーバーレイ */}
       <div
         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={() => {
+          void onClose();
+        }}
       />
 
       {/* ポップアップ本体 */}
@@ -146,7 +148,9 @@ export function TranslationPopup({
             {state === 'error' && 'エラー'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={() => {
+              void onClose();
+            }}
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="閉じる"
           >

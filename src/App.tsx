@@ -62,7 +62,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (state !== 'idle') {
-          reset();
+          void reset();
         } else if (isSettingsOpen) {
           setIsSettingsOpen(false);
         }

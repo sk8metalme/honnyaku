@@ -69,7 +69,7 @@ export interface UseTranslationFlowReturn {
   /** 手動で翻訳フローを開始する */
   startFlow: () => Promise<void>;
   /** 状態をリセットする */
-  reset: () => void;
+  reset: () => Promise<void>;
   /** ショートカットを有効/無効にする */
   setShortcutEnabled: (enabled: boolean) => void;
 }
@@ -231,7 +231,7 @@ export function useTranslationFlow(options?: {
 
       // 全てのモニターを取得
       const monitors = await availableMonitors();
-      if (!monitors || monitors.length === 0) return;
+      if (monitors.length === 0) return;
 
       // 各モニターのスケールファクターとLogical座標を計算
       const logicalMonitors = monitors.map((m) => {

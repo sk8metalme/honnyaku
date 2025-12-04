@@ -30,6 +30,29 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }));
 
+// Tauriのウィンドウ APIをモック
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: vi.fn(() => ({
+    outerSize: vi.fn().mockResolvedValue({ width: 400, height: 604 }),
+    setPosition: vi.fn().mockResolvedValue(undefined),
+    setAlwaysOnTop: vi.fn().mockResolvedValue(undefined),
+    setFocus: vi.fn().mockResolvedValue(undefined),
+  })),
+  availableMonitors: vi.fn().mockResolvedValue([
+    {
+      name: 'Mock Monitor',
+      position: { x: 0, y: 0 },
+      size: { width: 1920, height: 1080 },
+      scaleFactor: 2,
+    },
+  ]),
+}));
+
+// Tauriの DPI APIをモック
+vi.mock('@tauri-apps/api/dpi', () => ({
+  LogicalPosition: vi.fn((x: number, y: number) => ({ x, y })),
+}));
+
 // 言語検出をモック
 vi.mock('@/lib/language-detect', () => ({
   detectLanguage: vi.fn((text: string) => {
@@ -102,6 +125,9 @@ describe('useTranslationFlow', () => {
         success: true,
       } as ClipboardContent);
 
+      // カーソル位置取得
+      mockInvoke.mockResolvedValueOnce([100, 200]);
+
       // 翻訳結果
       mockInvoke.mockResolvedValueOnce({
         translatedText: 'こんにちは、世界！',
@@ -161,6 +187,9 @@ describe('useTranslationFlow', () => {
         text: 'テスト',
         success: true,
       } as ClipboardContent);
+
+      // カーソル位置取得
+      mockInvoke.mockResolvedValueOnce([100, 200]);
 
       mockInvoke.mockResolvedValueOnce({
         translatedText: 'Test',
@@ -233,6 +262,9 @@ describe('useTranslationFlow', () => {
         success: true,
       } as ClipboardContent);
 
+      // カーソル位置取得
+      mockInvoke.mockResolvedValueOnce([100, 200]);
+
       mockInvoke.mockResolvedValueOnce({
         translatedText: 'こんにちは',
         sourceLang: 'english',
@@ -253,8 +285,8 @@ describe('useTranslationFlow', () => {
       expect(result.current.state).toBe('completed');
 
       // リセット
-      act(() => {
-        result.current.reset();
+      await act(async () => {
+        await result.current.reset();
       });
 
       expect(result.current.state).toBe('idle');
@@ -270,6 +302,9 @@ describe('useTranslationFlow', () => {
         text: 'こんにちは',
         success: true,
       } as ClipboardContent);
+
+      // カーソル位置取得
+      mockInvoke.mockResolvedValueOnce([100, 200]);
 
       mockInvoke.mockResolvedValueOnce({
         translatedText: 'Hello',
