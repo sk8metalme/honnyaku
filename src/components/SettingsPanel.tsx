@@ -117,7 +117,8 @@ function SelectField({
         {
           value,
           label: `${value} (非推奨 - 削除されたモデル)`,
-          description: 'このモデルは利用できません。別のモデルを選択してください。',
+          description:
+            'このモデルは利用できません。別のモデルを選択してください。',
         },
         ...options,
       ];
@@ -203,7 +204,8 @@ export function ToggleSwitch({
  * 設定画面コンポーネント
  */
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { settings, updateSettings, checkProviderStatus } = useSettingsContext();
+  const { settings, updateSettings, checkProviderStatus } =
+    useSettingsContext();
 
   const { isAccessibilityGranted, requestAccessibility } = usePermissions();
 

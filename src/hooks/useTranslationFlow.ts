@@ -238,11 +238,11 @@ export function useTranslationFlow(options?: {
         const scaleFactor = m.scaleFactor;
         const logicalPos = {
           x: m.position.x / scaleFactor,
-          y: m.position.y / scaleFactor
+          y: m.position.y / scaleFactor,
         };
         const logicalSize = {
           width: m.size.width / scaleFactor,
-          height: m.size.height / scaleFactor
+          height: m.size.height / scaleFactor,
         };
         return { ...m, logicalPos, logicalSize, scaleFactor };
       });
@@ -251,7 +251,9 @@ export function useTranslationFlow(options?: {
       let targetMonitor = logicalMonitors[0];
 
       // macOSのカーソルY座標をTauri座標系に変換（全画面の高さを使用 - Logical座標）
-      const allMonitorsMaxY = Math.max(...logicalMonitors.map(m => m.logicalPos.y + m.logicalSize.height));
+      const allMonitorsMaxY = Math.max(
+        ...logicalMonitors.map((m) => m.logicalPos.y + m.logicalSize.height)
+      );
       const tauriCursorY = allMonitorsMaxY - cursorY;
 
       for (const monitor of logicalMonitors) {
@@ -284,8 +286,10 @@ export function useTranslationFlow(options?: {
       const tauriY = tauriCursorY + offsetY;
 
       // ウィンドウが画面外に出ないように調整（Logical座標）
-      const monitorRight = targetMonitor.logicalPos.x + targetMonitor.logicalSize.width;
-      const monitorBottom = targetMonitor.logicalPos.y + targetMonitor.logicalSize.height;
+      const monitorRight =
+        targetMonitor.logicalPos.x + targetMonitor.logicalSize.width;
+      const monitorBottom =
+        targetMonitor.logicalPos.y + targetMonitor.logicalSize.height;
 
       const finalX = Math.max(
         targetMonitor.logicalPos.x,
@@ -312,7 +316,10 @@ export function useTranslationFlow(options?: {
    * 翻訳フローを開始する
    */
   const startFlow = useCallback(async () => {
-    console.log('[翻訳フロー] 開始リクエスト - 実行中:', isExecutingRef.current);
+    console.log(
+      '[翻訳フロー] 開始リクエスト - 実行中:',
+      isExecutingRef.current
+    );
 
     // 既に実行中なら無視（同期的に重複実行を防ぐ）
     if (isExecutingRef.current) {
