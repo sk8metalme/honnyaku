@@ -118,13 +118,21 @@ fn build_api_options(model_type: ModelType) -> serde_json::Value {
 fn build_plamo_prompt(text: &str, source_lang: Language, target_lang: Language) -> String {
     match (source_lang, target_lang) {
         (Language::Japanese, Language::English) => {
-            format!("Translate the following Japanese text to English:\n{}", text)
+            format!(
+                "Translate the following Japanese text to English:\n{}",
+                text
+            )
         }
         (Language::English, Language::Japanese) => {
             format!("以下の英文を日本語に翻訳してください:\n{}", text)
         }
         _ => {
-            format!("Translate from {} to {}:\n{}", source_lang.name(), target_lang.name(), text)
+            format!(
+                "Translate from {} to {}:\n{}",
+                source_lang.name(),
+                target_lang.name(),
+                text
+            )
         }
     }
 }
@@ -134,14 +142,22 @@ fn build_general_prompt(text: &str, source_lang: Language, target_lang: Language
     match (source_lang, target_lang) {
         (Language::Japanese, Language::English) => {
             // 日本語→英語: 超シンプル
-            format!("Translate the following Japanese text to English:\n{}", text)
+            format!(
+                "Translate the following Japanese text to English:\n{}",
+                text
+            )
         }
         (Language::English, Language::Japanese) => {
             // 英語→日本語: 超シンプル
             format!("以下の英文を日本語に翻訳してください:\n{}", text)
         }
         _ => {
-            format!("Translate from {} to {}:\n{}", source_lang.name(), target_lang.name(), text)
+            format!(
+                "Translate from {} to {}:\n{}",
+                source_lang.name(),
+                target_lang.name(),
+                text
+            )
         }
     }
 }
@@ -563,14 +579,20 @@ mod tests {
 
     #[test]
     fn test_build_translation_prompt_qwen() {
-        let prompt = build_translation_prompt("Hello", Language::English, Language::Japanese, "qwen2.5:3b");
+        let prompt =
+            build_translation_prompt("Hello", Language::English, Language::Japanese, "qwen2.5:3b");
         assert!(prompt.contains("Hello"));
         assert!(prompt.contains("翻訳"));
     }
 
     #[test]
     fn test_build_translation_prompt_plamo() {
-        let prompt = build_translation_prompt("こんにちは", Language::Japanese, Language::English, "mitmul/plamo-2-translate:Q4_K_M");
+        let prompt = build_translation_prompt(
+            "こんにちは",
+            Language::Japanese,
+            Language::English,
+            "mitmul/plamo-2-translate:Q4_K_M",
+        );
         assert!(prompt.contains("こんにちは"));
         assert!(prompt.contains("English"));
     }
