@@ -24,6 +24,8 @@ export interface TranslationPopupProps {
   translatedText: string | null;
   /** エラー情報 */
   error: TranslationFlowError | null;
+  /** 翻訳時間（ミリ秒） */
+  durationMs?: number | null;
   /** 閉じるボタンクリック時のコールバック */
   onClose: () => void;
   /** コピーボタンクリック時のコールバック */
@@ -116,6 +118,7 @@ export function TranslationPopup({
   originalText,
   translatedText,
   error,
+  durationMs,
   onClose,
   onCopy,
 }: TranslationPopupProps) {
@@ -237,8 +240,20 @@ export function TranslationPopup({
         </div>
 
         {/* フッター */}
-        {state === 'completed' && (
-          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
+        {(state === 'translating' || state === 'completed') && (
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            {state === 'translating' ? (
+              <span className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-2">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500" />
+                翻訳中...
+              </span>
+            ) : durationMs !== null && durationMs !== undefined ? (
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {(durationMs / 1000).toFixed(1)}秒
+              </span>
+            ) : (
+              <span />
+            )}
             <span className="text-xs text-gray-400 dark:text-gray-500">
               Esc キーで閉じる
             </span>

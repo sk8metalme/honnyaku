@@ -24,7 +24,7 @@ function App() {
   const { writeText } = useClipboard();
 
   // 翻訳フロー
-  const { state, originalText, translatedText, error, reset } =
+  const { state, originalText, translatedText, error, durationMs, reset } =
     useTranslationFlow({
       onTranslationComplete: () => {
         // 翻訳完了時の処理（必要に応じてサウンド再生など）
@@ -205,6 +205,7 @@ function App() {
         originalText={originalText}
         translatedText={translatedText}
         error={error}
+        durationMs={durationMs}
         onClose={reset}
         onCopy={(text: string) => {
           void handleCopy(text);

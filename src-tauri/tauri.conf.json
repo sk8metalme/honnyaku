@@ -15,12 +15,12 @@
       {
         "title": "翻訳",
         "width": 400,
-        "height": 300,
+        "height": 604,
         "resizable": true,
         "fullscreen": false,
         "visible": true,
-        "decorations": false,
-        "alwaysOnTop": true,
+        "decorations": true,
+        "alwaysOnTop": false,
         "skipTaskbar": true
       }
     ],

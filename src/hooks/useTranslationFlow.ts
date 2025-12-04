@@ -7,8 +7,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
+import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { detectLanguage } from '@/lib/language-detect';
-import type { TranslationResult, Language } from '@/types';
+import type { Language, TranslationResult } from '@/types';
 import { toBackendLanguage } from '@/types';
 import type { ClipboardContent } from './useClipboard';
 
@@ -60,6 +62,8 @@ export interface UseTranslationFlowReturn {
   translatedText: string | null;
   /** エラー情報 */
   error: TranslationFlowError | null;
+  /** 翻訳時間（ミリ秒） */
+  durationMs: number | null;
   /** ショートカットが有効かどうか */
   isShortcutEnabled: boolean;
   /** 手動で翻訳フローを開始する */
@@ -129,11 +133,15 @@ export function useTranslationFlow(options?: {
   const [originalText, setOriginalText] = useState('');
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [error, setError] = useState<TranslationFlowError | null>(null);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
   const [isShortcutEnabled, setIsShortcutEnabled] = useState(true);
 
   // コールバックの参照を保持
   const onTranslationCompleteRef = useRef(onTranslationComplete);
   const onErrorRef = useRef(onError);
+
+  // 実行中フラグ（同期的に重複実行を防ぐ）
+  const isExecutingRef = useRef(false);
 
   useEffect(() => {
     onTranslationCompleteRef.current = onTranslationComplete;
@@ -199,6 +207,7 @@ export function useTranslationFlow(options?: {
           targetLang: toBackendLanguage(targetLang),
         });
 
+        setDurationMs(result.durationMs);
         return result.translatedText;
       } catch (err) {
         console.error('Translation failed:', err);
@@ -209,68 +218,202 @@ export function useTranslationFlow(options?: {
   );
 
   /**
+   * ウィンドウをカーソル位置の近くに移動し、前面に表示する
+   */
+  const moveWindowToCursor = useCallback(async () => {
+    try {
+      // カーソル位置を取得 (macOS座標系: 左下が原点)
+      const [cursorX, cursorY] = await invoke<[number, number]>(
+        'get_cursor_position'
+      );
+
+      const window = getCurrentWindow();
+
+      // 全てのモニターを取得
+      const monitors = await availableMonitors();
+      if (!monitors || monitors.length === 0) return;
+
+      // 各モニターのスケールファクターとLogical座標を計算
+      const logicalMonitors = monitors.map((m) => {
+        const scaleFactor = m.scaleFactor;
+        const logicalPos = {
+          x: m.position.x / scaleFactor,
+          y: m.position.y / scaleFactor
+        };
+        const logicalSize = {
+          width: m.size.width / scaleFactor,
+          height: m.size.height / scaleFactor
+        };
+        return { ...m, logicalPos, logicalSize, scaleFactor };
+      });
+
+      // カーソルがどのモニターにあるかを判定（Logical座標で）
+      let targetMonitor = logicalMonitors[0];
+
+      // macOSのカーソルY座標をTauri座標系に変換（全画面の高さを使用 - Logical座標）
+      const allMonitorsMaxY = Math.max(...logicalMonitors.map(m => m.logicalPos.y + m.logicalSize.height));
+      const tauriCursorY = allMonitorsMaxY - cursorY;
+
+      for (const monitor of logicalMonitors) {
+        const monitorLeft = monitor.logicalPos.x;
+        const monitorTop = monitor.logicalPos.y;
+        const monitorRight = monitorLeft + monitor.logicalSize.width;
+        const monitorBottom = monitorTop + monitor.logicalSize.height;
+
+        if (
+          cursorX >= monitorLeft &&
+          cursorX < monitorRight &&
+          tauriCursorY >= monitorTop &&
+          tauriCursorY < monitorBottom
+        ) {
+          targetMonitor = monitor;
+          break;
+        }
+      }
+
+      // ウィンドウサイズを取得（Logical）
+      const windowSize = await window.outerSize();
+      const windowWidth = windowSize.width / targetMonitor.scaleFactor;
+      const windowHeight = windowSize.height / targetMonitor.scaleFactor;
+
+      // ウィンドウをカーソルの右下に配置（オフセット: +20px, +20px）
+      const offsetX = 20;
+      const offsetY = 20;
+
+      const tauriX = cursorX + offsetX;
+      const tauriY = tauriCursorY + offsetY;
+
+      // ウィンドウが画面外に出ないように調整（Logical座標）
+      const monitorRight = targetMonitor.logicalPos.x + targetMonitor.logicalSize.width;
+      const monitorBottom = targetMonitor.logicalPos.y + targetMonitor.logicalSize.height;
+
+      const finalX = Math.max(
+        targetMonitor.logicalPos.x,
+        Math.min(tauriX, monitorRight - windowWidth - 10)
+      );
+      const finalY = Math.max(
+        targetMonitor.logicalPos.y,
+        Math.min(tauriY, monitorBottom - windowHeight - 10)
+      );
+
+      // ウィンドウ位置を設定（Logical座標）
+      await window.setPosition(new LogicalPosition(finalX, finalY));
+
+      // ウィンドウを前面に表示
+      await window.setAlwaysOnTop(true);
+      await window.setFocus();
+    } catch (err) {
+      console.error('Failed to move window to cursor:', err);
+      // エラーが発生してもフローは継続
+    }
+  }, []);
+
+  /**
    * 翻訳フローを開始する
    */
   const startFlow = useCallback(async () => {
-    // リセット
-    setError(null);
-    setOriginalText('');
-    setTranslatedText(null);
+    console.log('[翻訳フロー] 開始リクエスト - 実行中:', isExecutingRef.current);
 
-    // Step 1: 選択テキストを取得
-    setState('getting-selection');
-
-    const selectedText = await getSelectedText();
-
-    if (!selectedText) {
-      handleError('no-selection', 'テキストが選択されていません');
+    // 既に実行中なら無視（同期的に重複実行を防ぐ）
+    if (isExecutingRef.current) {
+      console.log('[翻訳フロー] 既に実行中のためスキップ');
       return;
     }
 
-    setOriginalText(selectedText);
+    // 実行中フラグを立てる
+    isExecutingRef.current = true;
+    console.log('[翻訳フロー] 開始');
 
-    // Step 2: 翻訳を実行
-    setState('translating');
+    try {
+      // リセット
+      setError(null);
+      setOriginalText('');
+      setTranslatedText(null);
 
-    const result = await translateText(selectedText);
+      // Step 1: 選択テキストを取得（フォーカスが変わる前に実行）
+      setState('getting-selection');
 
-    if (!result) {
-      handleError('translation-failed', '翻訳に失敗しました');
-      return;
+      const selectedText = await getSelectedText();
+
+      if (!selectedText) {
+        handleError('no-selection', 'テキストが選択されていません');
+        return;
+      }
+
+      setOriginalText(selectedText);
+
+      // Step 2: ウィンドウをカーソル位置に移動（テキスト取得後）
+      await moveWindowToCursor();
+
+      // Step 3: 翻訳を実行
+      setState('translating');
+
+      const result = await translateText(selectedText);
+
+      if (!result) {
+        handleError('translation-failed', '翻訳に失敗しました');
+        return;
+      }
+
+      // 完了
+      console.log('[翻訳フロー] 完了:', { textLength: result.length });
+      setTranslatedText(result);
+      setState('completed');
+      onTranslationCompleteRef.current?.({
+        original: selectedText,
+        translated: result,
+      });
+    } finally {
+      // 実行中フラグを解除
+      isExecutingRef.current = false;
+      console.log('[翻訳フロー] フラグ解除');
     }
+  }, [getSelectedText, translateText, handleError, moveWindowToCursor]);
 
-    // 完了
-    setTranslatedText(result);
-    setState('completed');
-    onTranslationCompleteRef.current?.({
-      original: selectedText,
-      translated: result,
-    });
-  }, [getSelectedText, translateText, handleError]);
+  // startFlowの参照を保持（useEffectでの重複登録を防ぐ）
+  const startFlowRef = useRef(startFlow);
+  useEffect(() => {
+    startFlowRef.current = startFlow;
+  }, [startFlow]);
 
   /**
    * 状態をリセットする
    */
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
+    // 実行中フラグを解除
+    isExecutingRef.current = false;
+
     setState('idle');
     setOriginalText('');
     setTranslatedText(null);
     setError(null);
+    setDurationMs(null);
+
+    // ウィンドウを通常状態に戻す（常に前面表示を解除）
+    try {
+      const window = getCurrentWindow();
+      await window.setAlwaysOnTop(false);
+    } catch (err) {
+      console.error('Failed to reset window state:', err);
+    }
   }, []);
 
   // ショートカットイベントのリスナーを設定
   useEffect(() => {
     if (!autoStart) return;
 
+    console.log('[リスナー] 登録開始');
     let unlisten: UnlistenFn | null = null;
 
     async function setupListener() {
       try {
         unlisten = await listen('shortcut-triggered', () => {
+          console.log('[リスナー] ショートカットイベント受信');
           if (isShortcutEnabled) {
-            void startFlow();
+            void startFlowRef.current();
           }
         });
+        console.log('[リスナー] 登録完了');
       } catch (err) {
         console.error('Failed to setup shortcut listener:', err);
       }
@@ -279,15 +422,17 @@ export function useTranslationFlow(options?: {
     void setupListener();
 
     return () => {
+      console.log('[リスナー] クリーンアップ');
       unlisten?.();
     };
-  }, [autoStart, isShortcutEnabled, startFlow]);
+  }, [autoStart, isShortcutEnabled]);
 
   return {
     state,
     originalText,
     translatedText,
     error,
+    durationMs,
     isShortcutEnabled,
     startFlow,
     reset,

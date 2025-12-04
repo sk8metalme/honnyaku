@@ -15,6 +15,13 @@
     "store:allow-set",
     "store:allow-delete",
     "store:allow-save",
-    "store:allow-load"
+    "store:allow-load",
+    "core:window:allow-set-position",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-focus",
+    "core:window:allow-available-monitors",
+    "core:window:allow-outer-size",
+    "core:window:allow-primary-monitor",
+    "core:window:allow-current-monitor"
   ]
 }

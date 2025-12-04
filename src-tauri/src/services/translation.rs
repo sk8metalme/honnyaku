@@ -2,8 +2,11 @@
 //!
 //! Ollama APIを使用したテキスト翻訳機能を提供
 
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
+use tauri::Emitter;
 use thiserror::Error;
 
 /// 言語
@@ -69,23 +72,151 @@ impl Serialize for TranslationError {
     }
 }
 
-/// 翻訳用プロンプトを構築
-fn build_translation_prompt(text: &str, source_lang: Language, target_lang: Language) -> String {
-    format!(
-        r#"You are a professional translator. Translate the following text from {} to {}.
+/// モデル種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModelType {
+    /// PLaMo-2-Translate（翻訳特化モデル）
+    PlamoTranslate,
+    /// Qwen等の汎用LLM
+    GeneralPurpose,
+}
 
-Rules:
-- Output ONLY the translation, nothing else
-- Preserve the original tone and style
-- Keep technical terms accurate
-- Maintain formatting (line breaks, punctuation)
+/// モデル名からモデル種別を判定
+fn detect_model_type(model: &str) -> ModelType {
+    let model_lower = model.to_lowercase();
+    if model_lower.contains("plamo") && model_lower.contains("translate") {
+        ModelType::PlamoTranslate
+    } else {
+        ModelType::GeneralPurpose
+    }
+}
 
-Text to translate:
-{}"#,
-        source_lang.name(),
-        target_lang.name(),
-        text
-    )
+/// モデル種別に応じたAPIパラメータを構築
+fn build_api_options(model_type: ModelType) -> serde_json::Value {
+    match model_type {
+        ModelType::PlamoTranslate => {
+            // PLaMo: 翻訳特化モデル向け設定
+            serde_json::json!({
+                "temperature": 0.1,      // 一貫性重視（翻訳特化モデルはより低く）
+                "repeat_penalty": 1.4,   // 繰り返し防止を強化（評価レポート2より）
+                "num_predict": 4096,     // 長文翻訳対応（途中終了防止）
+            })
+        }
+        ModelType::GeneralPurpose => {
+            // Qwen等: 汎用LLM向け設定
+            serde_json::json!({
+                "temperature": 0.2,      // 一貫性重視
+                "repeat_penalty": 1.1,   // 繰り返し防止
+                "num_predict": 4096,     // 長文翻訳対応（途中終了防止）
+                "top_p": 0.9,            // 確率的サンプリング
+            })
+        }
+    }
+}
+
+/// PLaMo-2-Translate用プロンプトを構築（シンプル）
+fn build_plamo_prompt(text: &str, source_lang: Language, target_lang: Language) -> String {
+    match (source_lang, target_lang) {
+        (Language::Japanese, Language::English) => {
+            format!("Translate the following Japanese text to English:\n{}", text)
+        }
+        (Language::English, Language::Japanese) => {
+            format!("以下の英文を日本語に翻訳してください:\n{}", text)
+        }
+        _ => {
+            format!("Translate from {} to {}:\n{}", source_lang.name(), target_lang.name(), text)
+        }
+    }
+}
+
+/// 汎用LLM用プロンプトを構築（シンプル）
+fn build_general_prompt(text: &str, source_lang: Language, target_lang: Language) -> String {
+    match (source_lang, target_lang) {
+        (Language::Japanese, Language::English) => {
+            // 日本語→英語: 超シンプル
+            format!("Translate the following Japanese text to English:\n{}", text)
+        }
+        (Language::English, Language::Japanese) => {
+            // 英語→日本語: 超シンプル
+            format!("以下の英文を日本語に翻訳してください:\n{}", text)
+        }
+        _ => {
+            format!("Translate from {} to {}:\n{}", source_lang.name(), target_lang.name(), text)
+        }
+    }
+}
+
+/// 翻訳用プロンプトを構築（モデルと言語方向に応じて最適化）
+fn build_translation_prompt(
+    text: &str,
+    source_lang: Language,
+    target_lang: Language,
+    model: &str,
+) -> String {
+    let model_type = detect_model_type(model);
+    match model_type {
+        ModelType::PlamoTranslate => build_plamo_prompt(text, source_lang, target_lang),
+        ModelType::GeneralPurpose => build_general_prompt(text, source_lang, target_lang),
+    }
+}
+
+/// 翻訳結果をクリーニング
+fn clean_translation_result(text: &str, source_text: &str) -> String {
+    let mut result = text.trim().to_string();
+
+    // 1. 先頭・末尾の引用符を除去
+    let quotes = ['"', '「', '」', '『', '』', '\''];
+    for &quote in &quotes {
+        if result.starts_with(quote) {
+            result = result.trim_start_matches(quote).trim().to_string();
+        }
+        if result.ends_with(quote) {
+            result = result.trim_end_matches(quote).trim().to_string();
+        }
+    }
+
+    // 2. プレフィックス除去パターン（大文字小文字無視）
+    let prefixes_to_remove = [
+        "translation:",
+        "translated text:",
+        "翻訳:",
+        "翻訳結果:",
+        "訳文:",
+        "訳:",
+        "english:",
+        "japanese:",
+        "日本語:",
+        "英語:",
+        "here is the translation:",
+        "the translation is:",
+    ];
+
+    let result_lower = result.to_lowercase();
+    for prefix in prefixes_to_remove {
+        if result_lower.starts_with(prefix) {
+            result = result[prefix.len()..].trim().to_string();
+            break;
+        }
+    }
+
+    // 3. 元のテキストが含まれている場合の除去
+    // パターン1: "Original text\n\nTranslation" の形式
+    if let Some(pos) = result.find("\n\n") {
+        let first_part = &result[..pos];
+        let second_part = &result[pos + 2..];
+
+        // 最初の部分が元のテキストと類似している場合、2番目の部分のみを使用
+        if first_part.contains(source_text) || source_text.contains(first_part) {
+            result = second_part.trim().to_string();
+        }
+    }
+
+    // パターン2: 元のテキストで始まる場合
+    if result.starts_with(source_text) {
+        result = result[source_text.len()..].trim().to_string();
+    }
+
+    result
 }
 
 /// Ollamaレスポンス（chat API）
@@ -99,6 +230,44 @@ struct OllamaMessage {
     content: String,
 }
 
+/// Ollamaストリーミングレスポンス
+#[derive(Debug, Deserialize)]
+struct OllamaStreamResponse {
+    message: Option<OllamaMessage>,
+    done: bool,
+}
+
+/// ストリーミングチャンクイベント
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamChunk {
+    pub chunk: String,
+    pub accumulated: String,
+    pub done: bool,
+}
+
+/// ストリーミング完了イベント
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamComplete {
+    pub translated_text: String,
+    pub duration_ms: u64,
+}
+
+/// グローバルHTTPクライアント（コネクションプーリング）
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+/// HTTPクライアントを取得または初期化
+fn get_http_client() -> &'static reqwest::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .pool_max_idle_per_host(5)
+            .build()
+            .expect("Failed to create HTTP client")
+    })
+}
+
 /// Ollamaで翻訳を実行
 pub async fn translate_with_ollama(
     text: &str,
@@ -108,13 +277,17 @@ pub async fn translate_with_ollama(
     model: &str,
 ) -> Result<TranslationResult, TranslationError> {
     let start = Instant::now();
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| TranslationError::ConnectionFailed(e.to_string()))?;
+    let client = get_http_client();
 
-    let prompt = build_translation_prompt(text, source_lang, target_lang);
+    // モデル種別を判定
+    let model_type = detect_model_type(model);
+
+    // プロンプト構築（モデルと言語方向に応じて最適化）
+    let prompt = build_translation_prompt(text, source_lang, target_lang, model);
     let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
+
+    // APIパラメータ構築
+    let options = build_api_options(model_type);
 
     let request_body = serde_json::json!({
         "model": model,
@@ -124,7 +297,9 @@ pub async fn translate_with_ollama(
                 "content": prompt
             }
         ],
-        "stream": false
+        "stream": false,
+        "options": options,
+        "keep_alive": "10m"
     });
 
     let response = client
@@ -160,8 +335,11 @@ pub async fn translate_with_ollama(
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
+    // ポストプロセシング（強化版）
+    let translated = clean_translation_result(&chat_response.message.content, text);
+
     Ok(TranslationResult {
-        translated_text: chat_response.message.content.trim().to_string(),
+        translated_text: translated,
         source_lang,
         target_lang,
         duration_ms,
@@ -206,10 +384,7 @@ pub async fn check_ollama_status(endpoint: &str) -> ProviderStatus {
 /// 空のリクエストを送信してモデルをメモリにロードし、
 /// 初回翻訳時のレイテンシを削減する
 pub async fn preload_ollama_model(endpoint: &str, model: &str) -> Result<(), String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
 
@@ -221,7 +396,8 @@ pub async fn preload_ollama_model(endpoint: &str, model: &str) -> Result<(), Str
                 "content": "hi"
             }
         ],
-        "stream": false
+        "stream": false,
+        "keep_alive": "10m"
     });
 
     client
@@ -242,6 +418,92 @@ pub async fn preload_ollama_model(endpoint: &str, model: &str) -> Result<(), Str
     Ok(())
 }
 
+/// ストリーミング翻訳を実行
+pub async fn translate_with_ollama_stream<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    text: &str,
+    source_lang: Language,
+    target_lang: Language,
+    endpoint: &str,
+    model: &str,
+) -> Result<(), TranslationError> {
+    let start = Instant::now();
+    let client = get_http_client();
+
+    // プロンプト構築
+    let prompt = build_translation_prompt(text, source_lang, target_lang, model);
+    let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
+    let model_type = detect_model_type(model);
+    let options = build_api_options(model_type);
+
+    let request_body = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": true,
+        "options": options,
+        "keep_alive": "10m"
+    });
+
+    let response = client
+        .post(&url)
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                TranslationError::Timeout
+            } else if e.is_connect() {
+                TranslationError::ConnectionFailed(
+                    "Ollamaが起動していません。Ollamaを起動してください。".to_string(),
+                )
+            } else {
+                TranslationError::ConnectionFailed(e.to_string())
+            }
+        })?;
+
+    let mut stream = response.bytes_stream();
+    let mut accumulated = String::new();
+
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| TranslationError::ConnectionFailed(e.to_string()))?;
+        let line = String::from_utf8_lossy(&bytes);
+
+        if let Ok(resp) = serde_json::from_str::<OllamaStreamResponse>(&line) {
+            if let Some(msg) = resp.message {
+                accumulated.push_str(&msg.content);
+
+                // チャンクイベント発行
+                let _ = app.emit(
+                    "translation-chunk",
+                    StreamChunk {
+                        chunk: msg.content,
+                        accumulated: accumulated.clone(),
+                        done: resp.done,
+                    },
+                );
+            }
+
+            if resp.done {
+                break;
+            }
+        }
+    }
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+    let translated = clean_translation_result(&accumulated, text);
+
+    // 完了イベント発行
+    let _ = app.emit(
+        "translation-complete",
+        StreamComplete {
+            translated_text: translated,
+            duration_ms,
+        },
+    );
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,12 +515,110 @@ mod tests {
     }
 
     #[test]
-    fn test_build_translation_prompt() {
-        let prompt = build_translation_prompt("Hello", Language::English, Language::Japanese);
+    fn test_detect_model_type_plamo() {
+        assert_eq!(
+            detect_model_type("mitmul/plamo-2-translate:Q4_K_M"),
+            ModelType::PlamoTranslate
+        );
+        assert_eq!(
+            detect_model_type("mitmul/plamo-2-translate:Q2_K_S"),
+            ModelType::PlamoTranslate
+        );
+    }
+
+    #[test]
+    fn test_detect_model_type_general() {
+        assert_eq!(detect_model_type("qwen2.5:3b"), ModelType::GeneralPurpose);
+        assert_eq!(detect_model_type("llama2:7b"), ModelType::GeneralPurpose);
+    }
+
+    #[test]
+    fn test_build_plamo_prompt_ja_to_en() {
+        let prompt = build_plamo_prompt("こんにちは", Language::Japanese, Language::English);
+        assert!(prompt.contains("こんにちは"));
         assert!(prompt.contains("English"));
-        assert!(prompt.contains("Japanese"));
+    }
+
+    #[test]
+    fn test_build_plamo_prompt_en_to_ja() {
+        let prompt = build_plamo_prompt("Hello", Language::English, Language::Japanese);
         assert!(prompt.contains("Hello"));
-        assert!(prompt.contains("ONLY the translation"));
+        assert!(prompt.contains("日本語"));
+    }
+
+    #[test]
+    fn test_build_general_prompt_ja_to_en() {
+        let prompt = build_general_prompt("こんにちは", Language::Japanese, Language::English);
+        assert!(prompt.contains("こんにちは"));
+        assert!(prompt.contains("Translate"));
+        assert!(prompt.contains("English"));
+    }
+
+    #[test]
+    fn test_build_general_prompt_en_to_ja() {
+        let prompt = build_general_prompt("Hello", Language::English, Language::Japanese);
+        assert!(prompt.contains("Hello"));
+        assert!(prompt.contains("翻訳"));
+    }
+
+    #[test]
+    fn test_build_translation_prompt_qwen() {
+        let prompt = build_translation_prompt("Hello", Language::English, Language::Japanese, "qwen2.5:3b");
+        assert!(prompt.contains("Hello"));
+        assert!(prompt.contains("翻訳"));
+    }
+
+    #[test]
+    fn test_build_translation_prompt_plamo() {
+        let prompt = build_translation_prompt("こんにちは", Language::Japanese, Language::English, "mitmul/plamo-2-translate:Q4_K_M");
+        assert!(prompt.contains("こんにちは"));
+        assert!(prompt.contains("English"));
+    }
+
+    #[test]
+    fn test_clean_translation_result_prefix_removal() {
+        assert_eq!(
+            clean_translation_result("Translation: Hello world", "こんにちは"),
+            "Hello world"
+        );
+        assert_eq!(
+            clean_translation_result("翻訳: こんにちは世界", "Hello"),
+            "こんにちは世界"
+        );
+    }
+
+    #[test]
+    fn test_clean_translation_result_quote_removal() {
+        assert_eq!(
+            clean_translation_result("\"Hello world\"", "こんにちは"),
+            "Hello world"
+        );
+        assert_eq!(
+            clean_translation_result("「こんにちは世界」", "Hello"),
+            "こんにちは世界"
+        );
+    }
+
+    #[test]
+    fn test_clean_translation_result_original_text_removal() {
+        let result = clean_translation_result("こんにちは\n\nHello", "こんにちは");
+        assert_eq!(result, "Hello");
+    }
+
+    #[test]
+    fn test_build_api_options_plamo() {
+        let options = build_api_options(ModelType::PlamoTranslate);
+        assert_eq!(options["temperature"], 0.1);
+        assert_eq!(options["repeat_penalty"], 1.4);
+        assert_eq!(options["num_predict"], 4096);
+    }
+
+    #[test]
+    fn test_build_api_options_general() {
+        let options = build_api_options(ModelType::GeneralPurpose);
+        assert_eq!(options["temperature"], 0.2);
+        assert_eq!(options["repeat_penalty"], 1.1);
+        assert_eq!(options["num_predict"], 4096);
     }
 
     #[test]

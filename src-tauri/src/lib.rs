@@ -2,6 +2,10 @@
 //!
 //! This library provides the core functionality for the Honnyaku translation application.
 
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+
 mod services;
 
 use services::clipboard::{ClipboardContent, ClipboardError};
@@ -116,6 +120,44 @@ async fn translate(
         .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
 
     translation::translate_with_ollama(
+        &text,
+        source_lang,
+        target_lang,
+        &ollama_endpoint,
+        &ollama_model,
+    )
+    .await
+}
+
+/// テキストをストリーミングモードで翻訳する
+///
+/// 翻訳結果を逐次イベントで配信し、リアルタイムに表示可能にする
+#[tauri::command]
+async fn translate_stream(
+    app: tauri::AppHandle,
+    text: String,
+    source_lang: Language,
+    target_lang: Language,
+) -> Result<(), TranslationError> {
+    use tauri_plugin_store::StoreExt;
+
+    // 設定を取得
+    let store = app
+        .store("settings.json")
+        .map_err(|e| TranslationError::ApiError(format!("設定の読み込みに失敗: {}", e)))?;
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    translation::translate_with_ollama_stream(
+        &app,
         &text,
         source_lang,
         target_lang,
@@ -315,6 +357,32 @@ async fn is_accessibility_granted() -> bool {
 }
 
 // ============================================================================
+// ウィンドウ管理コマンド
+// ============================================================================
+
+/// マウスカーソルの現在位置を取得する (macOS)
+#[tauri::command]
+async fn get_cursor_position() -> Result<(f64, f64), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::foundation::NSPoint;
+
+        unsafe {
+            // mouseLocationはNSEventのクラスメソッド
+            let ns_event_class = class!(NSEvent);
+            let mouse_location: NSPoint = msg_send![ns_event_class, mouseLocation];
+            // macOSの座標系は左下が原点なので、そのまま返す
+            Ok((mouse_location.x, mouse_location.y))
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("This function is only available on macOS".to_string())
+    }
+}
+
+// ============================================================================
 // クリップボードコマンド
 // ============================================================================
 
@@ -421,6 +489,7 @@ pub fn run() {
             save_settings,
             reset_settings,
             translate,
+            translate_stream,
             check_provider_status,
             preload_ollama_model,
             validate_shortcut_format,
@@ -434,6 +503,7 @@ pub fn run() {
             read_clipboard,
             write_clipboard,
             get_selected_text,
+            get_cursor_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

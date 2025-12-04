@@ -68,3 +68,20 @@ export function toBackendLanguage(lang: Language): BackendLanguage {
 export function toFrontendLanguage(lang: BackendLanguage): Language {
   return lang === 'japanese' ? 'ja' : 'en';
 }
+
+/**
+ * ストリーミングチャンクイベント
+ */
+export interface StreamChunk {
+  chunk: string;
+  accumulated: string;
+  done: boolean;
+}
+
+/**
+ * ストリーミング完了イベント
+ */
+export interface StreamComplete {
+  translatedText: string;
+  durationMs: number;
+}
