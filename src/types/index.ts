@@ -104,11 +104,13 @@ export interface SummarizeResult {
  * 返信結果（バックエンドから返される）
  */
 export interface ReplyResult {
-  /** 返信テキスト（翻訳先言語） */
+  /** 返信テキスト（翻訳先言語）
+   * 例: 日→英翻訳の場合は英語の返信 */
   reply: string;
-  /** 返信の翻訳（翻訳元言語） */
+  /** 返信の翻訳（翻訳元言語）
+   * 例: 日→英翻訳の場合は日本語の返信（上記replyを翻訳したもの） */
   explanation: string;
-  /** 返信の言語 */
+  /** 返信の言語（翻訳先言語） */
   language: BackendLanguage;
   /** 処理時間（ミリ秒） */
   durationMs: number;

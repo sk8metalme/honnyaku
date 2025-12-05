@@ -60,10 +60,12 @@ pub struct SummarizeResult {
 #[serde(rename_all = "camelCase")]
 pub struct ReplyResult {
     /// 返信テキスト（翻訳先言語）
+    /// 例: 日→英翻訳の場合は英語の返信
     pub reply: String,
-    /// 返信の説明（翻訳元言語）
+    /// 返信の翻訳（翻訳元言語）
+    /// 例: 日→英翻訳の場合は日本語の返信（上記replyを翻訳したもの）
     pub explanation: String,
-    /// 返信の言語
+    /// 返信の言語（翻訳先言語）
     pub language: Language,
     /// 処理時間（ミリ秒）
     pub duration_ms: u64,
@@ -89,6 +91,8 @@ pub enum TranslationError {
     ConnectionFailed(String),
     #[error("APIエラー: {0}")]
     ApiError(String),
+    #[error("このモデルは要約・返信機能に対応していません。7B以上のモデルを使用してください（現在: {0}）")]
+    ModelTooSmall(String),
 }
 
 impl Serialize for TranslationError {
@@ -116,6 +120,65 @@ fn detect_model_type(model: &str) -> ModelType {
         ModelType::PlamoTranslate
     } else {
         ModelType::GeneralPurpose
+    }
+}
+
+/// モデル名からパラメータサイズ（B単位）を抽出
+/// 例: "qwen2.5:3b" -> Some(3), "qwen2.5:7b" -> Some(7), "unknown" -> None
+fn extract_model_size(model: &str) -> Option<u32> {
+    let model_lower = model.to_lowercase();
+
+    // "3b", "7b", "14b" などのパターンを検索
+    // コロンの後か、ハイフンの後に続く数字+bのパターン
+    let patterns = [
+        // "model:3b" パターン
+        (r":", r"b"),
+        // "model-3b" パターン
+        (r"-", r"b"),
+        // "model_3b" パターン
+        (r"_", r"b"),
+    ];
+
+    for (prefix, _suffix) in patterns {
+        if let Some(pos) = model_lower.find(prefix) {
+            let after_prefix = &model_lower[pos + prefix.len()..];
+            // 数字を抽出
+            let mut num_str = String::new();
+            for ch in after_prefix.chars() {
+                if ch.is_ascii_digit() {
+                    num_str.push(ch);
+                } else if ch == 'b' && !num_str.is_empty() {
+                    // 数字の後にbが続く場合は成功
+                    if let Ok(size) = num_str.parse::<u32>() {
+                        return Some(size);
+                    }
+                    break;
+                } else if !num_str.is_empty() {
+                    // 数字の後に他の文字が続く場合は失敗
+                    break;
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// 要約・返信機能に必要な最小モデルサイズ（B単位）
+const MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES: u32 = 7;
+
+/// モデルが要約・返信機能に対応しているか検証
+fn validate_model_for_advanced_features(model: &str) -> Result<(), TranslationError> {
+    match extract_model_size(model) {
+        Some(size) if size >= MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES => Ok(()),
+        Some(size) => Err(TranslationError::ModelTooSmall(
+            format!("{}B（最小要件: {}B以上）", size, MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES)
+        )),
+        None => {
+            // サイズが抽出できない場合は警告せずに続行
+            // （カスタムモデルや特殊な命名規則に対応）
+            Ok(())
+        }
     }
 }
 
@@ -548,83 +611,39 @@ pub async fn translate_with_ollama_stream<R: tauri::Runtime>(
     Ok(())
 }
 
-/// 要約用プロンプトを構築（より具体的な指示で短い要約を生成）
+/// 要約用プロンプトを構築（極限までシンプル化）
 fn build_summarize_prompt(text: &str, language: Language) -> String {
     match language {
         Language::Japanese => {
             format!(
-                r#"以下のテキストを要約してください。
-
-【ルール】
-- 最大3文以内で要約すること
-- 元のテキストの主旨・結論を優先すること
-- 詳細や例は省略すること
-- 要約のみを出力し、「要約:」などの接頭辞は不要
-
-【テキスト】
-{}"#,
+                "以下の日本語テキストを3文以内で日本語で要約してください。要約のみを出力してください。\n\n{}",
                 text
             )
         }
         Language::English => {
             format!(
-                r#"Summarize the following text.
-
-【Rules】
-- Maximum 3 sentences
-- Focus on the main point and conclusion
-- Omit details and examples
-- Output only the summary without any prefix like "Summary:"
-
-【Text】
-{}"#,
+                "Summarize the following English text in 3 sentences or less in English. Output only the summary.\n\n{}",
                 text
             )
         }
     }
 }
 
-/// 返信用プロンプトを構築（ビジネス向け丁寧な文体 + 翻訳元言語での翻訳付き）
+/// 返信用プロンプトを構築（極限までシンプル化）
 ///
-/// language: 返信を作成する言語（翻訳先言語）
-/// source_language: 翻訳を作成する言語（翻訳元言語）
-fn build_reply_prompt(text: &str, language: Language, source_language: Language) -> String {
+/// language: 返信を作成する言語
+/// _source_language: 未使用（後方互換性のため保持）
+fn build_reply_prompt(text: &str, language: Language, _source_language: Language) -> String {
     match language {
         Language::Japanese => {
-            // 返信は日本語、翻訳は英語
             format!(
-                r#"以下のメッセージに対して、ビジネス向けの丁寧で礼儀正しい日本語の返信を作成してください。
-
-【出力形式】
-以下の形式で出力してください:
-
-[返信]
-（ここに日本語の返信を記載）
-
-[翻訳]
-（ここに上記の日本語返信を英語に翻訳した内容を記載）
-
-【メッセージ】
-{}"#,
+                "以下の日本語メッセージに対して、丁寧なビジネスメールの返信を日本語で書いてください。返信のみを出力してください。\n\n{}",
                 text
             )
         }
         Language::English => {
-            // 返信は英語、翻訳は日本語
             format!(
-                r#"Create a polite and professional English business reply to the following message.
-
-【Output Format】
-Please output in the following format:
-
-[Reply]
-(Write the English reply here)
-
-[Translation]
-(Translate the above English reply into Japanese)
-
-【Message】
-{}"#,
+                "Write a polite business email reply to the following English message in English. Output only the reply.\n\n{}",
                 text
             )
         }
@@ -632,12 +651,14 @@ Please output in the following format:
 }
 
 /// 返信レスポンスをパースして返信と翻訳を分離
+/// 注: 2段階処理実装後は未使用。テストのために保持。
+#[allow(dead_code)]
 fn parse_reply_response(response: &str) -> (String, String) {
     let response = response.trim();
 
-    // [返信] と [翻訳] または [Reply] と [Translation] を探す
-    let reply_markers = ["[返信]", "[Reply]"];
-    let translation_markers = ["[翻訳]", "[Translation]", "[説明]", "[Explanation]"]; // 後方互換性のため説明マーカーも残す
+    // 新形式のマーカー（REPLY:、TRANSLATION:）を優先的に探す
+    let reply_markers = ["REPLY:", "Reply:", "reply:", "[返信]", "[Reply]"];
+    let translation_markers = ["TRANSLATION:", "Translation:", "translation:", "[翻訳]", "[Translation]", "[説明]", "[Explanation]"];
 
     let mut reply = String::new();
     let mut translation = String::new();
@@ -646,7 +667,7 @@ fn parse_reply_response(response: &str) -> (String, String) {
     for marker in &reply_markers {
         if let Some(start) = response.find(marker) {
             let after_marker = &response[start + marker.len()..];
-            // 次のセクションまで、または終わりまで取得
+            // 次のセクション（TRANSLATION:など）までを取得
             let end = translation_markers
                 .iter()
                 .filter_map(|m| after_marker.find(m))
@@ -665,9 +686,30 @@ fn parse_reply_response(response: &str) -> (String, String) {
         }
     }
 
-    // マーカーが見つからない場合は、全体を返信として使用
+    // マーカーが見つからない場合
     if reply.is_empty() && translation.is_empty() {
-        return (response.to_string(), String::new());
+        eprintln!("[WARNING] 返信レスポンスのパースに失敗しました。マーカーが見つかりませんでした。");
+        eprintln!("[WARNING] レスポンス全文: {}", response);
+
+        // 行ごとに分割して、最初の2行を返信と翻訳として扱う
+        let lines: Vec<&str> = response.lines().filter(|l| !l.trim().is_empty()).collect();
+        if lines.len() >= 2 {
+            eprintln!("[INFO] フォールバック: 最初の2行を返信と翻訳として使用");
+            return (lines[0].trim().to_string(), lines[1].trim().to_string());
+        } else if lines.len() == 1 {
+            eprintln!("[INFO] フォールバック: 最初の1行のみを返信として使用");
+            return (lines[0].trim().to_string(), String::new());
+        } else {
+            return (response.to_string(), String::new());
+        }
+    }
+
+    // 返信または翻訳が空の場合もログに記録
+    if reply.is_empty() {
+        eprintln!("[WARNING] 返信部分が空です");
+    }
+    if translation.is_empty() {
+        eprintln!("[WARNING] 翻訳部分が空です");
     }
 
     (reply, translation)
@@ -680,20 +722,40 @@ pub async fn summarize_with_ollama(
     endpoint: &str,
     model: &str,
 ) -> Result<SummarizeResult, TranslationError> {
+    // モデルサイズ検証
+    validate_model_for_advanced_features(model)?;
+
     let start = Instant::now();
     let client = get_http_client();
 
+    // デバッグログ
+    eprintln!("[要約] デバッグ情報:");
+    eprintln!("  text length: {}", text.len());
+    eprintln!("  language: {:?}", language);
+
     // プロンプト構築
     let prompt = build_summarize_prompt(text, language);
+    let preview = prompt.chars().take(200).collect::<String>();
+    eprintln!("  prompt preview: {}", preview);
     let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
 
     // モデル種別を判定してAPIパラメータ構築
     let model_type = detect_model_type(model);
     let options = build_api_options(model_type);
 
+    // システムメッセージ（言語固定の指示）
+    let system_message = match language {
+        Language::Japanese => "あなたは日本語の要約専門家です。必ず日本語でのみ応答してください。絶対に英語に翻訳しないでください。",
+        Language::English => "You are an English summarization expert. You MUST respond in English only. DO NOT translate to Japanese.",
+    };
+
     let request_body = serde_json::json!({
         "model": model,
         "messages": [
+            {
+                "role": "system",
+                "content": system_message
+            },
             {
                 "role": "user",
                 "content": prompt
@@ -737,8 +799,14 @@ pub async fn summarize_with_ollama(
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
+    // デバッグログ: レスポンス
+    eprintln!("[要約] レスポンス:");
+    eprintln!("  content: {}", &chat_response.message.content);
+
     // クリーニング
     let summary = clean_translation_result(&chat_response.message.content, text);
+    eprintln!("[要約] クリーニング後:");
+    eprintln!("  summary: {}", &summary);
 
     Ok(SummarizeResult {
         summary: summary.clone(),
@@ -759,20 +827,41 @@ pub async fn generate_reply_with_ollama(
     endpoint: &str,
     model: &str,
 ) -> Result<ReplyResult, TranslationError> {
+    // モデルサイズ検証
+    validate_model_for_advanced_features(model)?;
+
     let start = Instant::now();
     let client = get_http_client();
 
+    // デバッグログ
+    eprintln!("[返信生成] デバッグ情報:");
+    eprintln!("  text length: {}", text.len());
+    eprintln!("  language: {:?}", language);
+    eprintln!("  source_language: {:?}", source_language);
+
     // プロンプト構築（返信言語と説明言語を指定）
     let prompt = build_reply_prompt(text, language, source_language);
+    let preview = prompt.chars().take(200).collect::<String>();
+    eprintln!("  prompt preview: {}", preview);
     let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
 
     // モデル種別を判定してAPIパラメータ構築
     let model_type = detect_model_type(model);
     let options = build_api_options(model_type);
 
+    // システムメッセージ（単一言語の返信のみ）
+    let system_message = match language {
+        Language::Japanese => "あなたはビジネスメールの返信作成専門家です。必ず日本語でのみ返信を作成してください。",
+        Language::English => "You are a business email reply expert. You MUST write the reply in English only.",
+    };
+
     let request_body = serde_json::json!({
         "model": model,
         "messages": [
+            {
+                "role": "system",
+                "content": system_message
+            },
             {
                 "role": "user",
                 "content": prompt
@@ -816,12 +905,19 @@ pub async fn generate_reply_with_ollama(
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    // レスポンスをパースして返信と翻訳を分離
-    let (reply, translation) = parse_reply_response(&chat_response.message.content);
+    // デバッグログ: レスポンス
+    eprintln!("[返信生成] レスポンス:");
+    eprintln!("  content: {}", &chat_response.message.content);
+
+    // クリーニング（簡易版）
+    let reply = clean_translation_result(&chat_response.message.content, text);
+
+    eprintln!("[返信生成] クリーニング後:");
+    eprintln!("  reply: {}", &reply);
 
     Ok(ReplyResult {
-        reply,
-        explanation: translation, // 翻訳を explanation フィールドに格納
+        reply: reply.clone(),
+        explanation: reply, // 2段階処理では翻訳はフロントエンドで実施するため、同じ内容を格納
         language,
         duration_ms,
     })
@@ -853,6 +949,44 @@ mod tests {
     fn test_detect_model_type_general() {
         assert_eq!(detect_model_type("qwen2.5:3b"), ModelType::GeneralPurpose);
         assert_eq!(detect_model_type("llama2:7b"), ModelType::GeneralPurpose);
+    }
+
+    #[test]
+    fn test_extract_model_size() {
+        // コロンパターン
+        assert_eq!(extract_model_size("qwen2.5:3b"), Some(3));
+        assert_eq!(extract_model_size("qwen2.5:7b"), Some(7));
+        assert_eq!(extract_model_size("llama2:14b"), Some(14));
+        assert_eq!(extract_model_size("model:32b"), Some(32));
+
+        // ハイフンパターン
+        assert_eq!(extract_model_size("model-3b"), Some(3));
+        assert_eq!(extract_model_size("model-7b"), Some(7));
+
+        // アンダースコアパターン
+        assert_eq!(extract_model_size("model_3b"), Some(3));
+        assert_eq!(extract_model_size("model_7b"), Some(7));
+
+        // サイズが抽出できないケース
+        assert_eq!(extract_model_size("unknown"), None);
+        assert_eq!(extract_model_size("model"), None);
+        assert_eq!(extract_model_size("model:latest"), None);
+    }
+
+    #[test]
+    fn test_validate_model_for_advanced_features() {
+        // 7B以上は成功
+        assert!(validate_model_for_advanced_features("qwen2.5:7b").is_ok());
+        assert!(validate_model_for_advanced_features("qwen2.5:14b").is_ok());
+        assert!(validate_model_for_advanced_features("qwen2.5:32b").is_ok());
+
+        // 3B以下は失敗
+        assert!(validate_model_for_advanced_features("qwen2.5:3b").is_err());
+        assert!(validate_model_for_advanced_features("model:1b").is_err());
+
+        // サイズが抽出できない場合は成功（カスタムモデル対応）
+        assert!(validate_model_for_advanced_features("custom-model").is_ok());
+        assert!(validate_model_for_advanced_features("unknown").is_ok());
     }
 
     #[test]
@@ -1021,7 +1155,7 @@ mod tests {
         let prompt = build_summarize_prompt("テストテキスト", Language::Japanese);
         assert!(prompt.contains("要約"));
         assert!(prompt.contains("テストテキスト"));
-        assert!(prompt.contains("簡潔"));
+        assert!(prompt.contains("3文"));
     }
 
     #[test]
@@ -1029,25 +1163,23 @@ mod tests {
         let prompt = build_summarize_prompt("Test text", Language::English);
         assert!(prompt.contains("Summarize"));
         assert!(prompt.contains("Test text"));
-        assert!(prompt.contains("concisely"));
+        assert!(prompt.contains("3 sentences"));
     }
 
     #[test]
     fn test_build_reply_prompt_japanese() {
-        let prompt = build_reply_prompt("こんにちは", Language::Japanese);
+        let prompt = build_reply_prompt("こんにちは", Language::Japanese, Language::English);
         assert!(prompt.contains("返信"));
         assert!(prompt.contains("こんにちは"));
-        assert!(prompt.contains("ビジネス"));
         assert!(prompt.contains("丁寧"));
     }
 
     #[test]
     fn test_build_reply_prompt_english() {
-        let prompt = build_reply_prompt("Hello", Language::English);
+        let prompt = build_reply_prompt("Hello", Language::English, Language::Japanese);
         assert!(prompt.contains("reply"));
         assert!(prompt.contains("Hello"));
         assert!(prompt.contains("polite"));
-        assert!(prompt.contains("professional"));
     }
 
     #[test]
@@ -1070,14 +1202,80 @@ mod tests {
     fn test_reply_result_serialization() {
         let result = ReplyResult {
             reply: "返信テキスト".to_string(),
+            explanation: "Reply text".to_string(),
             language: Language::Japanese,
             duration_ms: 500,
         };
 
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"reply\""));
+        assert!(json.contains("\"explanation\""));
         assert!(json.contains("\"language\""));
         assert!(json.contains("\"durationMs\""));
         assert!(json.contains("\"japanese\""));
+    }
+
+    #[test]
+    fn test_parse_reply_response_with_markers() {
+        let response = r#"[返信]
+こちらは日本語の返信です。
+
+[翻訳]
+This is the English translation."#;
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "こちらは日本語の返信です。");
+        assert_eq!(translation, "This is the English translation.");
+    }
+
+    #[test]
+    fn test_parse_reply_response_english_markers() {
+        let response = r#"[Reply]
+This is an English reply.
+
+[Translation]
+これは日本語の翻訳です。"#;
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "This is an English reply.");
+        assert_eq!(translation, "これは日本語の翻訳です。");
+    }
+
+    #[test]
+    fn test_parse_reply_response_no_markers() {
+        let response = "This is a reply without markers.";
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "This is a reply without markers.");
+        assert_eq!(translation, "");
+    }
+
+    #[test]
+    fn test_parse_reply_response_new_format_japanese() {
+        let response = r#"REPLY: ご連絡ありがとうございます。承知いたしました。
+TRANSLATION: Thank you for your message. I understand."#;
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "ご連絡ありがとうございます。承知いたしました。");
+        assert_eq!(translation, "Thank you for your message. I understand.");
+    }
+
+    #[test]
+    fn test_parse_reply_response_new_format_english() {
+        let response = r#"REPLY: Thank you for your message. I understand.
+TRANSLATION: ご連絡ありがとうございます。承知いたしました。"#;
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "Thank you for your message. I understand.");
+        assert_eq!(translation, "ご連絡ありがとうございます。承知いたしました。");
+    }
+
+    #[test]
+    fn test_parse_reply_response_fallback_two_lines() {
+        let response = "First line as reply\nSecond line as translation";
+
+        let (reply, translation) = parse_reply_response(response);
+        assert_eq!(reply, "First line as reply");
+        assert_eq!(translation, "Second line as translation");
     }
 }

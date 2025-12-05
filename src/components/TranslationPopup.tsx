@@ -362,16 +362,19 @@ export function TranslationPopup({
                     </span>
                     <CopyButton text={replyText} onCopy={onCopy} />
                   </div>
-                  <div className="text-sm text-green-900 dark:text-green-100 max-h-32 overflow-y-auto">
+                  <div className="text-sm text-green-900 dark:text-green-100 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-green-300 dark:scrollbar-thumb-green-600 whitespace-pre-wrap break-words">
                     {replyText}
                   </div>
-                  {/* 返信の翻訳 */}
+                  {/* 返信の翻訳（元の言語） */}
                   {replyExplanation && (
                     <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
-                      <div className="text-xs text-green-600 dark:text-green-400 mb-1">
-                        翻訳
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs text-green-600 dark:text-green-400">
+                          元の言語での返信
+                        </div>
+                        <CopyButton text={replyExplanation} onCopy={onCopy} />
                       </div>
-                      <div className="text-xs text-green-800 dark:text-green-200">
+                      <div className="text-xs text-green-800 dark:text-green-200 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-green-300 dark:scrollbar-thumb-green-600 whitespace-pre-wrap break-words">
                         {replyExplanation}
                       </div>
                     </div>
