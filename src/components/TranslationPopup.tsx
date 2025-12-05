@@ -170,9 +170,9 @@ export function TranslationPopup({
       />
 
       {/* ポップアップ本体 */}
-      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
         {/* ヘッダー */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h2 className="text-sm font-medium text-gray-600 dark:text-gray-300">
             {state === 'getting-selection' && '選択テキストを取得中...'}
             {state === 'translating' && '翻訳中...'}
@@ -203,7 +203,7 @@ export function TranslationPopup({
         </div>
 
         {/* コンテンツ */}
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto flex-1 min-h-0">
           {/* ローディング状態 */}
           {(state === 'getting-selection' || state === 'translating') && (
             <LoadingSpinner />
@@ -384,7 +384,7 @@ export function TranslationPopup({
 
         {/* フッター */}
         {(state === 'translating' || state === 'completed') && (
-          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
             {state === 'translating' ? (
               <span className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-2">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500" />
