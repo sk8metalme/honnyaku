@@ -171,9 +171,10 @@ const MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES: u32 = 7;
 fn validate_model_for_advanced_features(model: &str) -> Result<(), TranslationError> {
     match extract_model_size(model) {
         Some(size) if size >= MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES => Ok(()),
-        Some(size) => Err(TranslationError::ModelTooSmall(
-            format!("{}B（最小要件: {}B以上）", size, MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES)
-        )),
+        Some(size) => Err(TranslationError::ModelTooSmall(format!(
+            "{}B（最小要件: {}B以上）",
+            size, MIN_MODEL_SIZE_FOR_ADVANCED_FEATURES
+        ))),
         None => {
             // サイズが抽出できない場合は警告せずに続行
             // （カスタムモデルや特殊な命名規則に対応）
@@ -658,7 +659,15 @@ fn parse_reply_response(response: &str) -> (String, String) {
 
     // 新形式のマーカー（REPLY:、TRANSLATION:）を優先的に探す
     let reply_markers = ["REPLY:", "Reply:", "reply:", "[返信]", "[Reply]"];
-    let translation_markers = ["TRANSLATION:", "Translation:", "translation:", "[翻訳]", "[Translation]", "[説明]", "[Explanation]"];
+    let translation_markers = [
+        "TRANSLATION:",
+        "Translation:",
+        "translation:",
+        "[翻訳]",
+        "[Translation]",
+        "[説明]",
+        "[Explanation]",
+    ];
 
     let mut reply = String::new();
     let mut translation = String::new();
@@ -688,7 +697,9 @@ fn parse_reply_response(response: &str) -> (String, String) {
 
     // マーカーが見つからない場合
     if reply.is_empty() && translation.is_empty() {
-        eprintln!("[WARNING] 返信レスポンスのパースに失敗しました。マーカーが見つかりませんでした。");
+        eprintln!(
+            "[WARNING] 返信レスポンスのパースに失敗しました。マーカーが見つかりませんでした。"
+        );
         eprintln!("[WARNING] レスポンス全文: {}", response);
 
         // 行ごとに分割して、最初の2行を返信と翻訳として扱う
@@ -851,8 +862,12 @@ pub async fn generate_reply_with_ollama(
 
     // システムメッセージ（単一言語の返信のみ）
     let system_message = match language {
-        Language::Japanese => "あなたはビジネスメールの返信作成専門家です。必ず日本語でのみ返信を作成してください。",
-        Language::English => "You are a business email reply expert. You MUST write the reply in English only.",
+        Language::Japanese => {
+            "あなたはビジネスメールの返信作成専門家です。必ず日本語でのみ返信を作成してください。"
+        }
+        Language::English => {
+            "You are a business email reply expert. You MUST write the reply in English only."
+        }
     };
 
     let request_body = serde_json::json!({
@@ -1267,7 +1282,10 @@ TRANSLATION: ご連絡ありがとうございます。承知いたしました�
 
         let (reply, translation) = parse_reply_response(response);
         assert_eq!(reply, "Thank you for your message. I understand.");
-        assert_eq!(translation, "ご連絡ありがとうございます。承知いたしました。");
+        assert_eq!(
+            translation,
+            "ご連絡ありがとうございます。承知いたしました。"
+        );
     }
 
     #[test]
