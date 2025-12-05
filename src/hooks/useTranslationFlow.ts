@@ -10,7 +10,12 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { detectLanguage } from '@/lib/language-detect';
-import type { Language, TranslationResult, SummarizeResult, ReplyResult } from '@/types';
+import type {
+  Language,
+  TranslationResult,
+  SummarizeResult,
+  ReplyResult,
+} from '@/types';
 import { toBackendLanguage } from '@/types';
 import type { ClipboardContent } from './useClipboard';
 
@@ -153,7 +158,9 @@ export function useTranslationFlow(options?: {
   const [isShortcutEnabled, setIsShortcutEnabled] = useState(true);
 
   // 要約・返信機能の状態
-  const [actionState, setActionState] = useState<'idle' | 'summarizing' | 'generating-reply'>('idle');
+  const [actionState, setActionState] = useState<
+    'idle' | 'summarizing' | 'generating-reply'
+  >('idle');
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string | null>(null);
   const [replyExplanation, setReplyExplanation] = useState<string | null>(null);
@@ -448,7 +455,10 @@ export function useTranslationFlow(options?: {
         language: toBackendLanguage(sourceLanguage),
       });
 
-      console.log('[要約] ステップ1完了（元の言語で要約）:', summaryResult.summary);
+      console.log(
+        '[要約] ステップ1完了（元の言語で要約）:',
+        summaryResult.summary
+      );
 
       // ステップ2: 要約を目的の言語に翻訳
       const translationResult = await invoke<TranslationResult>('translate', {
@@ -457,7 +467,10 @@ export function useTranslationFlow(options?: {
         targetLang: toBackendLanguage(targetLanguage),
       });
 
-      console.log('[要約] ステップ2完了（翻訳）:', translationResult.translatedText);
+      console.log(
+        '[要約] ステップ2完了（翻訳）:',
+        translationResult.translatedText
+      );
       setSummaryText(translationResult.translatedText);
       setActionState('idle');
     } catch (err) {
@@ -499,7 +512,10 @@ export function useTranslationFlow(options?: {
         sourceLanguage: toBackendLanguage(sourceLanguage), // 同じ言語
       });
 
-      console.log('[返信生成] ステップ1完了（元の言語で返信）:', replyResult.reply);
+      console.log(
+        '[返信生成] ステップ1完了（元の言語で返信）:',
+        replyResult.reply
+      );
 
       // ステップ2: 返信を目的の言語に翻訳
       const translationResult = await invoke<TranslationResult>('translate', {
@@ -508,7 +524,10 @@ export function useTranslationFlow(options?: {
         targetLang: toBackendLanguage(targetLanguage),
       });
 
-      console.log('[返信生成] ステップ2完了（翻訳）:', translationResult.translatedText);
+      console.log(
+        '[返信生成] ステップ2完了（翻訳）:',
+        translationResult.translatedText
+      );
 
       // 元の言語の返信と翻訳版の両方を保存
       setReplyText(translationResult.translatedText); // 翻訳版（目的の言語）
