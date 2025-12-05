@@ -24,15 +24,27 @@ function App() {
   const { writeText } = useClipboard();
 
   // 翻訳フロー
-  const { state, originalText, translatedText, error, durationMs, reset } =
-    useTranslationFlow({
-      onTranslationComplete: () => {
-        // 翻訳完了時の処理（必要に応じてサウンド再生など）
-      },
-      onError: (err) => {
-        console.error('Translation error:', err);
-      },
-    });
+  const {
+    state,
+    originalText,
+    translatedText,
+    error,
+    durationMs,
+    reset,
+    actionState,
+    summaryText,
+    replyText,
+    actionError,
+    summarize,
+    generateReply,
+  } = useTranslationFlow({
+    onTranslationComplete: () => {
+      // 翻訳完了時の処理（必要に応じてサウンド再生など）
+    },
+    onError: (err) => {
+      console.error('Translation error:', err);
+    },
+  });
 
   // 初期化: ショートカット登録
   useEffect(() => {
@@ -209,6 +221,16 @@ function App() {
         onClose={reset}
         onCopy={(text: string) => {
           void handleCopy(text);
+        }}
+        actionState={actionState}
+        summaryText={summaryText}
+        replyText={replyText}
+        actionError={actionError}
+        onSummarize={() => {
+          void summarize();
+        }}
+        onGenerateReply={() => {
+          void generateReply();
         }}
       />
 
