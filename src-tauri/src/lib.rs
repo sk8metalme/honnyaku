@@ -12,7 +12,10 @@ use services::clipboard::{ClipboardContent, ClipboardError};
 use services::permissions::PermissionStatus;
 use services::settings::{AppSettings, SettingsError};
 use services::shortcut::{self, ShortcutError, ShortcutStatus};
-use services::translation::{self, Language, ProviderStatus, TranslationError, TranslationResult};
+use services::translation::{
+    self, Language, ProviderStatus, ReplyResult, SummarizeResult, TranslationError,
+    TranslationResult,
+};
 
 /// Greet command for testing IPC
 #[tauri::command]
@@ -206,6 +209,76 @@ async fn preload_ollama_model(app: tauri::AppHandle) -> Result<(), String> {
         .unwrap_or_else(|| AppSettings::default().ollama_model);
 
     translation::preload_ollama_model(&ollama_endpoint, &ollama_model).await
+}
+
+/// テキストを要約する
+///
+/// 翻訳後のテキストを簡潔に要約し、翻訳先言語で結果を返す
+#[tauri::command]
+async fn summarize(
+    app: tauri::AppHandle,
+    text: String,
+    language: Language,
+) -> Result<SummarizeResult, TranslationError> {
+    use tauri_plugin_store::StoreExt;
+
+    // 設定を取得
+    let store = app
+        .store("settings.json")
+        .map_err(|e| TranslationError::ApiError(format!("設定の読み込みに失敗: {}", e)))?;
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    translation::summarize_with_ollama(&text, language, &ollama_endpoint, &ollama_model).await
+}
+
+/// 返信を生成する
+///
+/// 元の文章に対するビジネス向けの丁寧な返信を翻訳先言語で生成し、
+/// 翻訳元言語での説明も付与する
+///
+/// - language: 返信を作成する言語（翻訳先言語）
+/// - source_language: 説明を作成する言語（翻訳元言語）
+#[tauri::command]
+async fn generate_reply(
+    app: tauri::AppHandle,
+    original_text: String,
+    language: Language,
+    source_language: Language,
+) -> Result<ReplyResult, TranslationError> {
+    use tauri_plugin_store::StoreExt;
+
+    // 設定を取得
+    let store = app
+        .store("settings.json")
+        .map_err(|e| TranslationError::ApiError(format!("設定の読み込みに失敗: {}", e)))?;
+
+    let ollama_model = store
+        .get("ollamaModel")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_model);
+
+    let ollama_endpoint = store
+        .get("ollamaEndpoint")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
+
+    translation::generate_reply_with_ollama(
+        &original_text,
+        language,
+        source_language,
+        &ollama_endpoint,
+        &ollama_model,
+    )
+    .await
 }
 
 // ============================================================================
@@ -492,6 +565,8 @@ pub fn run() {
             translate_stream,
             check_provider_status,
             preload_ollama_model,
+            summarize,
+            generate_reply,
             validate_shortcut_format,
             get_shortcut_status,
             register_shortcut,

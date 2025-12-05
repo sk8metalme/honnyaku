@@ -10,7 +10,12 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { detectLanguage } from '@/lib/language-detect';
-import type { Language, TranslationResult } from '@/types';
+import type {
+  Language,
+  TranslationResult,
+  SummarizeResult,
+  ReplyResult,
+} from '@/types';
 import { toBackendLanguage } from '@/types';
 import type { ClipboardContent } from './useClipboard';
 
@@ -72,6 +77,22 @@ export interface UseTranslationFlowReturn {
   reset: () => Promise<void>;
   /** ショートカットを有効/無効にする */
   setShortcutEnabled: (enabled: boolean) => void;
+  /** アクション状態 */
+  actionState: 'idle' | 'summarizing' | 'generating-reply';
+  /** 要約テキスト */
+  summaryText: string | null;
+  /** 返信テキスト */
+  replyText: string | null;
+  /** 返信の説明テキスト */
+  replyExplanation: string | null;
+  /** アクションエラー */
+  actionError: string | null;
+  /** 翻訳先言語 */
+  targetLanguage: Language | null;
+  /** 要約を実行する */
+  summarize: () => Promise<void>;
+  /** 返信を生成する */
+  generateReply: () => Promise<void>;
 }
 
 /**
@@ -135,6 +156,17 @@ export function useTranslationFlow(options?: {
   const [error, setError] = useState<TranslationFlowError | null>(null);
   const [durationMs, setDurationMs] = useState<number | null>(null);
   const [isShortcutEnabled, setIsShortcutEnabled] = useState(true);
+
+  // 要約・返信機能の状態
+  const [actionState, setActionState] = useState<
+    'idle' | 'summarizing' | 'generating-reply'
+  >('idle');
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<string | null>(null);
+  const [replyExplanation, setReplyExplanation] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [targetLanguage, setTargetLanguage] = useState<Language | null>(null);
+  const [sourceLanguage, setSourceLanguage] = useState<Language | null>(null);
 
   // コールバックの参照を保持
   const onTranslationCompleteRef = useRef(onTranslationComplete);
@@ -208,6 +240,8 @@ export function useTranslationFlow(options?: {
         });
 
         setDurationMs(result.durationMs);
+        setTargetLanguage(targetLang); // 翻訳先言語を保存
+        setSourceLanguage(sourceLang); // 翻訳元言語を保存
         return result.translatedText;
       } catch (err) {
         console.error('Translation failed:', err);
@@ -337,6 +371,13 @@ export function useTranslationFlow(options?: {
       setOriginalText('');
       setTranslatedText(null);
 
+      // 要約・返信の状態もリセット
+      setActionState('idle');
+      setSummaryText(null);
+      setReplyText(null);
+      setReplyExplanation(null);
+      setActionError(null);
+
       // Step 1: 選択テキストを取得（フォーカスが変わる前に実行）
       setState('getting-selection');
 
@@ -384,6 +425,122 @@ export function useTranslationFlow(options?: {
   }, [startFlow]);
 
   /**
+   * 要約を実行する（2段階処理：元の言語で要約→翻訳）
+   */
+  const summarize = useCallback(async () => {
+    // 同時実行を防止
+    if (actionState !== 'idle') {
+      console.log('[要約] 既に実行中のためスキップ');
+      return;
+    }
+
+    // 元のテキストと言語が存在するかチェック
+    if (!originalText || !sourceLanguage || !targetLanguage) {
+      console.log('[要約] 必要な情報が存在しません');
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setActionState('summarizing');
+
+      console.log('[要約] デバッグ情報（2段階処理）:');
+      console.log('  originalText:', originalText);
+      console.log('  sourceLanguage:', sourceLanguage);
+      console.log('  targetLanguage:', targetLanguage);
+
+      // ステップ1: 元の言語で要約
+      const summaryResult = await invoke<SummarizeResult>('summarize', {
+        text: originalText,
+        language: toBackendLanguage(sourceLanguage),
+      });
+
+      console.log(
+        '[要約] ステップ1完了（元の言語で要約）:',
+        summaryResult.summary
+      );
+
+      // ステップ2: 要約を目的の言語に翻訳
+      const translationResult = await invoke<TranslationResult>('translate', {
+        text: summaryResult.summary,
+        sourceLang: toBackendLanguage(sourceLanguage),
+        targetLang: toBackendLanguage(targetLanguage),
+      });
+
+      console.log(
+        '[要約] ステップ2完了（翻訳）:',
+        translationResult.translatedText
+      );
+      setSummaryText(translationResult.translatedText);
+      setActionState('idle');
+    } catch (err) {
+      console.error('[要約] エラー:', err);
+      setActionError(err instanceof Error ? err.message : String(err));
+      setActionState('idle');
+    }
+  }, [actionState, originalText, sourceLanguage, targetLanguage]);
+
+  /**
+   * 返信を生成する（2段階処理：元の言語で返信→翻訳）
+   */
+  const generateReply = useCallback(async () => {
+    // 同時実行を防止
+    if (actionState !== 'idle') {
+      console.log('[返信生成] 既に実行中のためスキップ');
+      return;
+    }
+
+    // 元のテキストと言語が存在するかチェック
+    if (!originalText || !sourceLanguage || !targetLanguage) {
+      console.log('[返信生成] 必要な情報が存在しません');
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setActionState('generating-reply');
+
+      console.log('[返信生成] デバッグ情報（2段階処理）:');
+      console.log('  originalText:', originalText);
+      console.log('  sourceLanguage:', sourceLanguage);
+      console.log('  targetLanguage:', targetLanguage);
+
+      // ステップ1: 元の言語で返信を作成
+      const replyResult = await invoke<ReplyResult>('generate_reply', {
+        originalText: originalText,
+        language: toBackendLanguage(sourceLanguage),
+        sourceLanguage: toBackendLanguage(sourceLanguage), // 同じ言語
+      });
+
+      console.log(
+        '[返信生成] ステップ1完了（元の言語で返信）:',
+        replyResult.reply
+      );
+
+      // ステップ2: 返信を目的の言語に翻訳
+      const translationResult = await invoke<TranslationResult>('translate', {
+        text: replyResult.reply,
+        sourceLang: toBackendLanguage(sourceLanguage),
+        targetLang: toBackendLanguage(targetLanguage),
+      });
+
+      console.log(
+        '[返信生成] ステップ2完了（翻訳）:',
+        translationResult.translatedText
+      );
+
+      // 元の言語の返信と翻訳版の両方を保存
+      setReplyText(translationResult.translatedText); // 翻訳版（目的の言語）
+      setReplyExplanation(replyResult.reply); // 元の言語版
+      setActionState('idle');
+    } catch (err) {
+      console.error('[返信生成] エラー:', err);
+      setActionError(err instanceof Error ? err.message : String(err));
+      setActionState('idle');
+    }
+  }, [actionState, originalText, sourceLanguage, targetLanguage]);
+
+  /**
    * 状態をリセットする
    */
   const reset = useCallback(async () => {
@@ -395,6 +552,15 @@ export function useTranslationFlow(options?: {
     setTranslatedText(null);
     setError(null);
     setDurationMs(null);
+
+    // 要約・返信の状態もリセット
+    setActionState('idle');
+    setSummaryText(null);
+    setReplyText(null);
+    setReplyExplanation(null);
+    setActionError(null);
+    setTargetLanguage(null);
+    setSourceLanguage(null);
 
     // ウィンドウを通常状態に戻す（常に前面表示を解除）
     try {
@@ -444,5 +610,13 @@ export function useTranslationFlow(options?: {
     startFlow,
     reset,
     setShortcutEnabled: setIsShortcutEnabled,
+    actionState,
+    summaryText,
+    replyText,
+    replyExplanation,
+    actionError,
+    targetLanguage,
+    summarize,
+    generateReply,
   };
 }
