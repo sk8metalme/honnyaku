@@ -7,10 +7,46 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-06
+
 ### 追加
-- GitHub Actions CI/CDパイプライン構築
+- **翻訳要約・返信機能**
+  - 翻訳ポップアップに要約・返信ボタンと結果表示エリアを追加
+  - 要約・返信機能のUX改善
+  - 小さいモデルでの要約・返信機能を制限
+
+### 修正
+- ポップアップコンテンツのスクロール対応
+- 新規翻訳時に要約・返信結果をリセット
+- 返信案の説明を翻訳に変更
+
+## [0.3.0] - 2025-12-04
+
+### 追加
+- **翻訳速度向上と翻訳時間表示機能**
+  - 翻訳処理の最適化
+  - 翻訳完了時間の表示
+
+### 修正
+- CI/CDエラー修正（テストとLinting）
+- コードフォーマットの統一（Rustfmt、Prettier）
+
+## [0.2.0] - 2025-12-03
+
+### 追加
+- **PLaMo-2-Translateモデル対応**
+  - Preferred Networks社のPLaMo-2-Translateモデルをサポート
+  - UI状態同期の改善
+
+- **CI/CDパイプライン構築**
+  - GitHub Actions CI/CDパイプライン構築
   - PR時の自動テスト実行（フロントエンド/バックエンド/Linter）
   - タグpush時の自動リリースビルドとGitHub Release作成
+  - Intel Mac対応のリリースワークフロー改善
+
+- **ドキュメント改善**
+  - READMEにデモGIF追加
+  - ライセンス整備
 
 ## [0.1.0] - 2025-12-02
 
@@ -65,5 +101,8 @@
 - macOS 12.0 (Monterey) 以上
 - Apple Silicon (arm64) ネイティブサポート
 
-[Unreleased]: https://github.com/sk8metalme/honnyaku/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sk8metalme/honnyaku/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sk8metalme/honnyaku/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/sk8metalme/honnyaku/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/sk8metalme/honnyaku/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sk8metalme/honnyaku/releases/tag/v0.1.0
