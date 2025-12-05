@@ -518,20 +518,41 @@ async fn get_selected_text(app: tauri::AppHandle) -> Result<ClipboardContent, Cl
         ));
     }
 
-    // クリップボード更新を待機（ミリ秒）
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // クリップボード更新を待機し、内容が変更されたか確認
+    let mut selected_text = String::new();
+    let mut retries = 0;
+    let max_retries = 5; // 最大5回リトライ（合計500ms）
 
-    // クリップボードからテキストを読み取る
-    let selected_text = match app.clipboard().read_text() {
-        Ok(text) => text,
-        Err(e) => {
-            // 元のクリップボード内容を復元
-            if let Some(original) = original_content {
-                let _ = app.clipboard().write_text(original);
+    while retries < max_retries {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        match app.clipboard().read_text() {
+            Ok(text) => {
+                // クリップボードの内容が元の内容と異なる場合、コピー成功
+                if Some(&text) != original_content.as_ref() && !text.is_empty() {
+                    selected_text = text;
+                    break;
+                }
             }
-            return Err(ClipboardError::ReadFailed(e.to_string()));
+            Err(_) => {
+                // エラーの場合はリトライ
+            }
         }
-    };
+
+        retries += 1;
+    }
+
+    // リトライ上限に達した場合、元のクリップボード内容と同じままの場合
+    if selected_text.is_empty() || Some(&selected_text) == original_content.as_ref() {
+        // 元のクリップボード内容を復元
+        if let Some(original) = original_content {
+            let _ = app.clipboard().write_text(original);
+        }
+        return Err(ClipboardError::ReadFailed(
+            "選択テキストの取得に失敗しました。アクセシビリティ権限が許可されているか確認してください。"
+                .to_string(),
+        ));
+    }
 
     // 元のクリップボード内容を復元
     if let Some(original) = original_content {
