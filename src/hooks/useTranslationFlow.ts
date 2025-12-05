@@ -362,6 +362,13 @@ export function useTranslationFlow(options?: {
       setOriginalText('');
       setTranslatedText(null);
 
+      // 要約・返信の状態もリセット
+      setActionState('idle');
+      setSummaryText(null);
+      setReplyText(null);
+      setReplyExplanation(null);
+      setActionError(null);
+
       // Step 1: 選択テキストを取得（フォーカスが変わる前に実行）
       setState('getting-selection');
 
