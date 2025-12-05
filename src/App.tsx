@@ -34,6 +34,7 @@ function App() {
     actionState,
     summaryText,
     replyText,
+    replyExplanation,
     actionError,
     summarize,
     generateReply,
@@ -225,6 +226,7 @@ function App() {
         actionState={actionState}
         summaryText={summaryText}
         replyText={replyText}
+        replyExplanation={replyExplanation}
         actionError={actionError}
         onSummarize={() => {
           void summarize();

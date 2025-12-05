@@ -41,6 +41,34 @@ pub struct TranslationResult {
     pub duration_ms: u64,
 }
 
+/// 要約結果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SummarizeResult {
+    /// 要約テキスト
+    pub summary: String,
+    /// 元テキストの文字数
+    pub original_length: usize,
+    /// 要約テキストの文字数
+    pub summary_length: usize,
+    /// 処理時間（ミリ秒）
+    pub duration_ms: u64,
+}
+
+/// 返信結果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplyResult {
+    /// 返信テキスト（翻訳先言語）
+    pub reply: String,
+    /// 返信の説明（翻訳元言語）
+    pub explanation: String,
+    /// 返信の言語
+    pub language: Language,
+    /// 処理時間（ミリ秒）
+    pub duration_ms: u64,
+}
+
 /// プロバイダー接続状態
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "lowercase")]
@@ -520,6 +548,285 @@ pub async fn translate_with_ollama_stream<R: tauri::Runtime>(
     Ok(())
 }
 
+/// 要約用プロンプトを構築（より具体的な指示で短い要約を生成）
+fn build_summarize_prompt(text: &str, language: Language) -> String {
+    match language {
+        Language::Japanese => {
+            format!(
+                r#"以下のテキストを要約してください。
+
+【ルール】
+- 最大3文以内で要約すること
+- 元のテキストの主旨・結論を優先すること
+- 詳細や例は省略すること
+- 要約のみを出力し、「要約:」などの接頭辞は不要
+
+【テキスト】
+{}"#,
+                text
+            )
+        }
+        Language::English => {
+            format!(
+                r#"Summarize the following text.
+
+【Rules】
+- Maximum 3 sentences
+- Focus on the main point and conclusion
+- Omit details and examples
+- Output only the summary without any prefix like "Summary:"
+
+【Text】
+{}"#,
+                text
+            )
+        }
+    }
+}
+
+/// 返信用プロンプトを構築（ビジネス向け丁寧な文体 + 翻訳元言語での説明付き）
+///
+/// language: 返信を作成する言語（翻訳先言語）
+/// source_language: 説明を作成する言語（翻訳元言語）
+fn build_reply_prompt(text: &str, language: Language, source_language: Language) -> String {
+    match language {
+        Language::Japanese => {
+            // 返信は日本語、説明は英語
+            format!(
+                r#"以下のメッセージに対して、ビジネス向けの丁寧で礼儀正しい日本語の返信を作成してください。
+
+【出力形式】
+以下の形式で出力してください:
+
+[返信]
+（ここに日本語の返信を記載）
+
+[説明]
+（ここに返信内容の英語での説明を1-2文で記載。例: "This reply expresses gratitude and confirms the meeting time."）
+
+【メッセージ】
+{}"#,
+                text
+            )
+        }
+        Language::English => {
+            // 返信は英語、説明は日本語
+            format!(
+                r#"Create a polite and professional English business reply to the following message.
+
+【Output Format】
+Please output in the following format:
+
+[Reply]
+(Write the English reply here)
+
+[Explanation]
+(Write a 1-2 sentence explanation of the reply in Japanese. 例: "この返信は感謝を表し、ミーティングの時間を確認しています。")
+
+【Message】
+{}"#,
+                text
+            )
+        }
+    }
+}
+
+/// 返信レスポンスをパースして返信と説明を分離
+fn parse_reply_response(response: &str) -> (String, String) {
+    let response = response.trim();
+
+    // [返信] と [説明] または [Reply] と [Explanation] を探す
+    let reply_markers = ["[返信]", "[Reply]"];
+    let explanation_markers = ["[説明]", "[Explanation]"];
+
+    let mut reply = String::new();
+    let mut explanation = String::new();
+
+    // 返信部分を抽出
+    for marker in &reply_markers {
+        if let Some(start) = response.find(marker) {
+            let after_marker = &response[start + marker.len()..];
+            // 次のセクションまで、または終わりまで取得
+            let end = explanation_markers
+                .iter()
+                .filter_map(|m| after_marker.find(m))
+                .min()
+                .unwrap_or(after_marker.len());
+            reply = after_marker[..end].trim().to_string();
+            break;
+        }
+    }
+
+    // 説明部分を抽出
+    for marker in &explanation_markers {
+        if let Some(start) = response.find(marker) {
+            explanation = response[start + marker.len()..].trim().to_string();
+            break;
+        }
+    }
+
+    // マーカーが見つからない場合は、全体を返信として使用
+    if reply.is_empty() && explanation.is_empty() {
+        return (response.to_string(), String::new());
+    }
+
+    (reply, explanation)
+}
+
+/// Ollamaで要約を実行
+pub async fn summarize_with_ollama(
+    text: &str,
+    language: Language,
+    endpoint: &str,
+    model: &str,
+) -> Result<SummarizeResult, TranslationError> {
+    let start = Instant::now();
+    let client = get_http_client();
+
+    // プロンプト構築
+    let prompt = build_summarize_prompt(text, language);
+    let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
+
+    // モデル種別を判定してAPIパラメータ構築
+    let model_type = detect_model_type(model);
+    let options = build_api_options(model_type);
+
+    let request_body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "stream": false,
+        "options": options,
+        "keep_alive": "10m"
+    });
+
+    let response = client
+        .post(&url)
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                TranslationError::Timeout
+            } else if e.is_connect() {
+                TranslationError::ConnectionFailed(
+                    "Ollamaが起動していません。Ollamaを起動してください。".to_string(),
+                )
+            } else {
+                TranslationError::ConnectionFailed(e.to_string())
+            }
+        })?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(TranslationError::ApiError(format!(
+            "ステータス {}: {}",
+            status, error_text
+        )));
+    }
+
+    let chat_response: OllamaChatResponse = response
+        .json()
+        .await
+        .map_err(|e| TranslationError::ApiError(format!("レスポンスのパースに失敗: {}", e)))?;
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    // クリーニング
+    let summary = clean_translation_result(&chat_response.message.content, text);
+
+    Ok(SummarizeResult {
+        summary: summary.clone(),
+        original_length: text.chars().count(),
+        summary_length: summary.chars().count(),
+        duration_ms,
+    })
+}
+
+/// Ollamaで返信を生成
+///
+/// language: 返信を作成する言語（翻訳先言語）
+/// source_language: 説明を作成する言語（翻訳元言語）
+pub async fn generate_reply_with_ollama(
+    text: &str,
+    language: Language,
+    source_language: Language,
+    endpoint: &str,
+    model: &str,
+) -> Result<ReplyResult, TranslationError> {
+    let start = Instant::now();
+    let client = get_http_client();
+
+    // プロンプト構築（返信言語と説明言語を指定）
+    let prompt = build_reply_prompt(text, language, source_language);
+    let url = format!("{}/api/chat", endpoint.trim_end_matches('/'));
+
+    // モデル種別を判定してAPIパラメータ構築
+    let model_type = detect_model_type(model);
+    let options = build_api_options(model_type);
+
+    let request_body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "stream": false,
+        "options": options,
+        "keep_alive": "10m"
+    });
+
+    let response = client
+        .post(&url)
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                TranslationError::Timeout
+            } else if e.is_connect() {
+                TranslationError::ConnectionFailed(
+                    "Ollamaが起動していません。Ollamaを起動してください。".to_string(),
+                )
+            } else {
+                TranslationError::ConnectionFailed(e.to_string())
+            }
+        })?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(TranslationError::ApiError(format!(
+            "ステータス {}: {}",
+            status, error_text
+        )));
+    }
+
+    let chat_response: OllamaChatResponse = response
+        .json()
+        .await
+        .map_err(|e| TranslationError::ApiError(format!("レスポンスのパースに失敗: {}", e)))?;
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    // レスポンスをパースして返信と説明を分離
+    let (reply, explanation) = parse_reply_response(&chat_response.message.content);
+
+    Ok(ReplyResult {
+        reply,
+        explanation,
+        language,
+        duration_ms,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -707,5 +1014,70 @@ mod tests {
 
         let lang: Language = serde_json::from_str("\"english\"").unwrap();
         assert_eq!(lang, Language::English);
+    }
+
+    #[test]
+    fn test_build_summarize_prompt_japanese() {
+        let prompt = build_summarize_prompt("テストテキスト", Language::Japanese);
+        assert!(prompt.contains("要約"));
+        assert!(prompt.contains("テストテキスト"));
+        assert!(prompt.contains("簡潔"));
+    }
+
+    #[test]
+    fn test_build_summarize_prompt_english() {
+        let prompt = build_summarize_prompt("Test text", Language::English);
+        assert!(prompt.contains("Summarize"));
+        assert!(prompt.contains("Test text"));
+        assert!(prompt.contains("concisely"));
+    }
+
+    #[test]
+    fn test_build_reply_prompt_japanese() {
+        let prompt = build_reply_prompt("こんにちは", Language::Japanese);
+        assert!(prompt.contains("返信"));
+        assert!(prompt.contains("こんにちは"));
+        assert!(prompt.contains("ビジネス"));
+        assert!(prompt.contains("丁寧"));
+    }
+
+    #[test]
+    fn test_build_reply_prompt_english() {
+        let prompt = build_reply_prompt("Hello", Language::English);
+        assert!(prompt.contains("reply"));
+        assert!(prompt.contains("Hello"));
+        assert!(prompt.contains("polite"));
+        assert!(prompt.contains("professional"));
+    }
+
+    #[test]
+    fn test_summarize_result_serialization() {
+        let result = SummarizeResult {
+            summary: "要約テキスト".to_string(),
+            original_length: 100,
+            summary_length: 20,
+            duration_ms: 500,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"summary\""));
+        assert!(json.contains("\"originalLength\""));
+        assert!(json.contains("\"summaryLength\""));
+        assert!(json.contains("\"durationMs\""));
+    }
+
+    #[test]
+    fn test_reply_result_serialization() {
+        let result = ReplyResult {
+            reply: "返信テキスト".to_string(),
+            language: Language::Japanese,
+            duration_ms: 500,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"reply\""));
+        assert!(json.contains("\"language\""));
+        assert!(json.contains("\"durationMs\""));
+        assert!(json.contains("\"japanese\""));
     }
 }

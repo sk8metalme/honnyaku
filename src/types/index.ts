@@ -85,3 +85,31 @@ export interface StreamComplete {
   translatedText: string;
   durationMs: number;
 }
+
+/**
+ * 要約結果（バックエンドから返される）
+ */
+export interface SummarizeResult {
+  /** 要約テキスト */
+  summary: string;
+  /** 元テキストの文字数 */
+  originalLength: number;
+  /** 要約テキストの文字数 */
+  summaryLength: number;
+  /** 処理時間（ミリ秒） */
+  durationMs: number;
+}
+
+/**
+ * 返信結果（バックエンドから返される）
+ */
+export interface ReplyResult {
+  /** 返信テキスト（翻訳先言語） */
+  reply: string;
+  /** 返信の説明（翻訳元言語） */
+  explanation: string;
+  /** 返信の言語 */
+  language: BackendLanguage;
+  /** 処理時間（ミリ秒） */
+  durationMs: number;
+}

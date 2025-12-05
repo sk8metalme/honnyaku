@@ -36,6 +36,8 @@ export interface TranslationPopupProps {
   summaryText?: string | null;
   /** 返信テキスト */
   replyText?: string | null;
+  /** 返信の説明テキスト */
+  replyExplanation?: string | null;
   /** アクションエラー */
   actionError?: string | null;
   /** 要約を実行する関数 */
@@ -147,6 +149,7 @@ export function TranslationPopup({
   actionState = 'idle',
   summaryText,
   replyText,
+  replyExplanation,
   actionError,
   onSummarize,
   onGenerateReply,
@@ -344,7 +347,7 @@ export function TranslationPopup({
                     </span>
                     <CopyButton text={summaryText} onCopy={onCopy} />
                   </div>
-                  <div className="text-sm text-purple-900 dark:text-purple-100 max-h-48 overflow-y-auto">
+                  <div className="text-sm text-purple-900 dark:text-purple-100 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-300 dark:scrollbar-thumb-purple-600 whitespace-pre-wrap break-words">
                     {summaryText}
                   </div>
                 </div>
@@ -362,6 +365,17 @@ export function TranslationPopup({
                   <div className="text-sm text-green-900 dark:text-green-100 max-h-32 overflow-y-auto">
                     {replyText}
                   </div>
+                  {/* 返信の説明 */}
+                  {replyExplanation && (
+                    <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
+                      <div className="text-xs text-green-600 dark:text-green-400 mb-1">
+                        説明
+                      </div>
+                      <div className="text-xs text-green-800 dark:text-green-200">
+                        {replyExplanation}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
