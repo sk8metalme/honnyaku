@@ -584,14 +584,14 @@ fn build_summarize_prompt(text: &str, language: Language) -> String {
     }
 }
 
-/// 返信用プロンプトを構築（ビジネス向け丁寧な文体 + 翻訳元言語での説明付き）
+/// 返信用プロンプトを構築（ビジネス向け丁寧な文体 + 翻訳元言語での翻訳付き）
 ///
 /// language: 返信を作成する言語（翻訳先言語）
-/// source_language: 説明を作成する言語（翻訳元言語）
+/// source_language: 翻訳を作成する言語（翻訳元言語）
 fn build_reply_prompt(text: &str, language: Language, source_language: Language) -> String {
     match language {
         Language::Japanese => {
-            // 返信は日本語、説明は英語
+            // 返信は日本語、翻訳は英語
             format!(
                 r#"以下のメッセージに対して、ビジネス向けの丁寧で礼儀正しい日本語の返信を作成してください。
 
@@ -601,8 +601,8 @@ fn build_reply_prompt(text: &str, language: Language, source_language: Language)
 [返信]
 （ここに日本語の返信を記載）
 
-[説明]
-（ここに返信内容の英語での説明を1-2文で記載。例: "This reply expresses gratitude and confirms the meeting time."）
+[翻訳]
+（ここに上記の日本語返信を英語に翻訳した内容を記載）
 
 【メッセージ】
 {}"#,
@@ -610,7 +610,7 @@ fn build_reply_prompt(text: &str, language: Language, source_language: Language)
             )
         }
         Language::English => {
-            // 返信は英語、説明は日本語
+            // 返信は英語、翻訳は日本語
             format!(
                 r#"Create a polite and professional English business reply to the following message.
 
@@ -620,8 +620,8 @@ Please output in the following format:
 [Reply]
 (Write the English reply here)
 
-[Explanation]
-(Write a 1-2 sentence explanation of the reply in Japanese. 例: "この返信は感謝を表し、ミーティングの時間を確認しています。")
+[Translation]
+(Translate the above English reply into Japanese)
 
 【Message】
 {}"#,
@@ -631,23 +631,23 @@ Please output in the following format:
     }
 }
 
-/// 返信レスポンスをパースして返信と説明を分離
+/// 返信レスポンスをパースして返信と翻訳を分離
 fn parse_reply_response(response: &str) -> (String, String) {
     let response = response.trim();
 
-    // [返信] と [説明] または [Reply] と [Explanation] を探す
+    // [返信] と [翻訳] または [Reply] と [Translation] を探す
     let reply_markers = ["[返信]", "[Reply]"];
-    let explanation_markers = ["[説明]", "[Explanation]"];
+    let translation_markers = ["[翻訳]", "[Translation]", "[説明]", "[Explanation]"]; // 後方互換性のため説明マーカーも残す
 
     let mut reply = String::new();
-    let mut explanation = String::new();
+    let mut translation = String::new();
 
     // 返信部分を抽出
     for marker in &reply_markers {
         if let Some(start) = response.find(marker) {
             let after_marker = &response[start + marker.len()..];
             // 次のセクションまで、または終わりまで取得
-            let end = explanation_markers
+            let end = translation_markers
                 .iter()
                 .filter_map(|m| after_marker.find(m))
                 .min()
@@ -657,20 +657,20 @@ fn parse_reply_response(response: &str) -> (String, String) {
         }
     }
 
-    // 説明部分を抽出
-    for marker in &explanation_markers {
+    // 翻訳部分を抽出
+    for marker in &translation_markers {
         if let Some(start) = response.find(marker) {
-            explanation = response[start + marker.len()..].trim().to_string();
+            translation = response[start + marker.len()..].trim().to_string();
             break;
         }
     }
 
     // マーカーが見つからない場合は、全体を返信として使用
-    if reply.is_empty() && explanation.is_empty() {
+    if reply.is_empty() && translation.is_empty() {
         return (response.to_string(), String::new());
     }
 
-    (reply, explanation)
+    (reply, translation)
 }
 
 /// Ollamaで要約を実行
@@ -816,12 +816,12 @@ pub async fn generate_reply_with_ollama(
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    // レスポンスをパースして返信と説明を分離
-    let (reply, explanation) = parse_reply_response(&chat_response.message.content);
+    // レスポンスをパースして返信と翻訳を分離
+    let (reply, translation) = parse_reply_response(&chat_response.message.content);
 
     Ok(ReplyResult {
         reply,
-        explanation,
+        explanation: translation, // 翻訳を explanation フィールドに格納
         language,
         duration_ms,
     })

@@ -365,11 +365,11 @@ export function TranslationPopup({
                   <div className="text-sm text-green-900 dark:text-green-100 max-h-32 overflow-y-auto">
                     {replyText}
                   </div>
-                  {/* 返信の説明 */}
+                  {/* 返信の翻訳 */}
                   {replyExplanation && (
                     <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
                       <div className="text-xs text-green-600 dark:text-green-400 mb-1">
-                        説明
+                        翻訳
                       </div>
                       <div className="text-xs text-green-800 dark:text-green-200">
                         {replyExplanation}

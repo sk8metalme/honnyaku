@@ -106,7 +106,7 @@ export interface SummarizeResult {
 export interface ReplyResult {
   /** 返信テキスト（翻訳先言語） */
   reply: string;
-  /** 返信の説明（翻訳元言語） */
+  /** 返信の翻訳（翻訳元言語） */
   explanation: string;
   /** 返信の言語 */
   language: BackendLanguage;
