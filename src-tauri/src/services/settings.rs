@@ -15,6 +15,17 @@ pub struct AppSettings {
     pub ollama_model: String,
     /// Ollamaエンドポイント
     pub ollama_endpoint: String,
+    /// 翻訳プロバイダー ("ollama" or "claude-cli")
+    #[serde(default = "default_provider")]
+    pub provider: String,
+    /// Claude CLIの実行パス
+    #[serde(default)]
+    pub claude_cli_path: Option<String>,
+}
+
+/// providerフィールドのデフォルト値
+fn default_provider() -> String {
+    "ollama".to_string()
 }
 
 impl Default for AppSettings {
@@ -23,6 +34,8 @@ impl Default for AppSettings {
             shortcut: "CommandOrControl+J".to_string(),
             ollama_model: "qwen2.5:3b".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
+            provider: default_provider(),
+            claude_cli_path: None,
         }
     }
 }
@@ -61,6 +74,8 @@ mod tests {
         assert_eq!(settings.shortcut, "CommandOrControl+J");
         assert_eq!(settings.ollama_model, "qwen2.5:3b");
         assert_eq!(settings.ollama_endpoint, "http://localhost:11434");
+        assert_eq!(settings.provider, "ollama");
+        assert_eq!(settings.claude_cli_path, None);
     }
 
     #[test]
@@ -97,5 +112,70 @@ mod tests {
 
         let err = SettingsError::StoreNotInitialized;
         assert_eq!(err.to_string(), "設定ストアが初期化されていません");
+    }
+
+    #[test]
+    fn test_provider_default_value() {
+        // providerフィールドのデフォルト値検証
+        let settings = AppSettings::default();
+        assert_eq!(settings.provider, "ollama");
+    }
+
+    #[test]
+    fn test_claude_cli_path_default_value() {
+        // claude_cli_pathフィールドのデフォルト値検証
+        let settings = AppSettings::default();
+        assert_eq!(settings.claude_cli_path, None);
+    }
+
+    #[test]
+    fn test_backward_compatibility_deserialization() {
+        // 既存の設定ファイル（providerとclaude_cli_pathがない）からのデシリアライズ検証
+        let json = r#"{
+            "shortcut": "CommandOrControl+J",
+            "ollamaModel": "qwen2.5:3b",
+            "ollamaEndpoint": "http://localhost:11434"
+        }"#;
+
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.provider, "ollama"); // デフォルト値が適用される
+        assert_eq!(settings.claude_cli_path, None); // デフォルト値が適用される
+    }
+
+    #[test]
+    fn test_new_settings_serialization() {
+        // 新しいフィールドを含む設定のシリアライズ検証
+        let settings = AppSettings {
+            shortcut: "CommandOrControl+J".to_string(),
+            ollama_model: "qwen2.5:3b".to_string(),
+            ollama_endpoint: "http://localhost:11434".to_string(),
+            provider: "claude-cli".to_string(),
+            claude_cli_path: Some("/opt/homebrew/bin/claude".to_string()),
+        };
+
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("\"provider\""));
+        assert!(json.contains("\"claude-cli\""));
+        assert!(json.contains("\"claudeCliPath\""));
+        assert!(json.contains("/opt/homebrew/bin/claude"));
+    }
+
+    #[test]
+    fn test_new_settings_deserialization() {
+        // 新しいフィールドを含む設定のデシリアライズ検証
+        let json = r#"{
+            "shortcut": "CommandOrControl+J",
+            "ollamaModel": "qwen2.5:3b",
+            "ollamaEndpoint": "http://localhost:11434",
+            "provider": "claude-cli",
+            "claudeCliPath": "/usr/local/bin/claude"
+        }"#;
+
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.provider, "claude-cli");
+        assert_eq!(
+            settings.claude_cli_path,
+            Some("/usr/local/bin/claude".to_string())
+        );
     }
 }

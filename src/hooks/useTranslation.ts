@@ -7,6 +7,8 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { detectLanguage } from '@/lib/language-detect';
+import { translateWithClaudeCLI } from '@/lib/claude-cli';
+import { useSettings } from '@/hooks/useSettings';
 import type { TranslationResult, Language } from '@/types';
 import { toBackendLanguage } from '@/types';
 
@@ -52,6 +54,7 @@ export interface UseTranslationReturn {
  * ```
  */
 export function useTranslation(): UseTranslationReturn {
+  const { settings } = useSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [originalText, setOriginalText] = useState('');
   const [translatedText, setTranslatedText] = useState<string | null>(null);
@@ -88,12 +91,25 @@ export function useTranslation(): UseTranslationReturn {
         targetLang = DEFAULT_TARGET_LANG;
       }
 
-      // バックエンドで翻訳を実行
-      const result = await invoke<TranslationResult>('translate', {
-        text: trimmedText,
-        sourceLang: toBackendLanguage(sourceLang),
-        targetLang: toBackendLanguage(targetLang),
-      });
+      // Provider選択に応じて翻訳を実行
+      const provider = settings.provider;
+      let result: TranslationResult;
+
+      if (provider === 'claude-cli') {
+        // Claude CLI翻訳
+        result = await translateWithClaudeCLI(
+          trimmedText,
+          toBackendLanguage(sourceLang),
+          toBackendLanguage(targetLang)
+        );
+      } else {
+        // Ollama翻訳（既存ロジック）
+        result = await invoke<TranslationResult>('translate', {
+          text: trimmedText,
+          sourceLang: toBackendLanguage(sourceLang),
+          targetLang: toBackendLanguage(targetLang),
+        });
+      }
 
       setTranslatedText(result.translatedText);
     } catch (err) {
@@ -103,7 +119,7 @@ export function useTranslation(): UseTranslationReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [settings.provider]);
 
   const reset = useCallback(() => {
     setIsLoading(false);

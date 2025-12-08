@@ -18,6 +18,11 @@ export interface DetectionResult {
 }
 
 /**
+ * 翻訳プロバイダー
+ */
+export type TranslationProvider = 'ollama' | 'claude-cli';
+
+/**
  * アプリケーション設定
  */
 export interface AppSettings {
@@ -27,6 +32,10 @@ export interface AppSettings {
   ollamaModel: string;
   /** Ollamaエンドポイント */
   ollamaEndpoint: string;
+  /** 翻訳プロバイダー */
+  provider: TranslationProvider;
+  /** Claude CLIの実行パス */
+  claudeCliPath: string | null;
 }
 
 /**
@@ -53,6 +62,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shortcut: 'CommandOrControl+J',
   ollamaModel: 'qwen2.5:3b',
   ollamaEndpoint: 'http://localhost:11434',
+  provider: 'ollama',
+  claudeCliPath: null,
 };
 
 /**
