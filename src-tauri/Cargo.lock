@@ -1597,7 +1597,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "honnyaku"
-version = "0.2.0"
+version = "0.4.0"
 dependencies = [
  "cocoa",
  "futures",
@@ -4531,6 +4531,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

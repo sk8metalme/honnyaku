@@ -224,10 +224,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [ollamaEndpointInput, setOllamaEndpointInput] = useState(
     () => settings.ollamaEndpoint
   );
+  const [providerInput, setProviderInput] = useState(
+    () => settings.provider
+  );
+  const [claudeCliPathInput, setClaudeCliPathInput] = useState(
+    () => settings.claudeCliPath || ''
+  );
   const [providerStatus, setProviderStatus] = useState<
     'checking' | 'available' | 'unavailable' | null
   >(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [claudeCliWarning, setClaudeCliWarning] = useState('');
 
   // ショートカット変更
   const handleShortcutChange = useCallback(async () => {
@@ -264,6 +271,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     updateSettings,
   ]);
 
+  // Provider設定保存
+  const handleSaveProviderSettings = useCallback(async () => {
+    try {
+      await updateSettings({
+        provider: providerInput,
+        claudeCliPath: claudeCliPathInput || null,
+      });
+      setStatusMessage('Provider設定を保存しました');
+    } catch {
+      setStatusMessage('Provider設定の保存に失敗しました');
+    }
+  }, [providerInput, claudeCliPathInput, updateSettings]);
+
   // Ollama設定保存
   const handleSaveOllamaSettings = useCallback(async () => {
     try {
@@ -276,6 +296,23 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       setStatusMessage('設定の保存に失敗しました');
     }
   }, [ollamaModelInput, ollamaEndpointInput, updateSettings]);
+
+  // Claude CLIパス検証
+  const validateClaudeCliPath = useCallback(async (path: string) => {
+    if (!path) {
+      setClaudeCliWarning('');
+      return;
+    }
+
+    // パスが実行可能かチェック（簡易版）
+    // 実際の検証はBashコマンドで行うべきだが、ここでは基本的なチェックのみ
+    if (!path.includes('claude')) {
+      setClaudeCliWarning('警告: パスに "claude" が含まれていません');
+      return;
+    }
+
+    setClaudeCliWarning('');
+  }, []);
 
   // 接続テスト
   const handleTestConnection = useCallback(async () => {
@@ -403,6 +440,90 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               現在: {settings.shortcut}
               {shortcutRegistered && ' (登録済み)'}
             </p>
+          </section>
+
+          {/* Provider選択 */}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
+              翻訳プロバイダー
+            </h3>
+            <div className="space-y-3">
+              {/* Ollama選択 */}
+              <label className="flex items-start gap-3 p-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <input
+                  type="radio"
+                  name="provider"
+                  value="ollama"
+                  checked={providerInput === 'ollama'}
+                  onChange={(e) => {
+                    setProviderInput(e.target.value as 'ollama' | 'claude-cli');
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-800 dark:text-gray-200">
+                    Ollama (ローカル)
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    プライバシー重視・完全オフライン・無料
+                  </div>
+                </div>
+              </label>
+
+              {/* Claude CLI選択 */}
+              <label className="flex items-start gap-3 p-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <input
+                  type="radio"
+                  name="provider"
+                  value="claude-cli"
+                  checked={providerInput === 'claude-cli'}
+                  onChange={(e) => {
+                    setProviderInput(e.target.value as 'ollama' | 'claude-cli');
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-800 dark:text-gray-200">
+                    Claude CLI (リモート)
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    高品質・高速・API利用料金が発生
+                  </div>
+                </div>
+              </label>
+
+              {/* Claude CLIパス入力（条件付きレンダリング）*/}
+              {providerInput === 'claude-cli' && (
+                <div className="pl-9 space-y-2">
+                  <InputField
+                    label="Claude CLI パス"
+                    value={claudeCliPathInput}
+                    onChange={(value) => {
+                      setClaudeCliPathInput(value);
+                      void validateClaudeCliPath(value);
+                    }}
+                    placeholder="/opt/homebrew/bin/claude"
+                  />
+                  {claudeCliWarning && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      {claudeCliWarning}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Claude CLIの実行パスを指定してください。空の場合はデフォルトの "claude" コマンドを使用します。
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  void handleSaveProviderSettings();
+                }}
+                className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+              >
+                Provider設定を保存
+              </button>
+            </div>
           </section>
 
           {/* Ollama設定 */}

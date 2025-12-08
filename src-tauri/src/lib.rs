@@ -6,6 +6,7 @@
 #[macro_use]
 extern crate objc;
 
+mod llm;
 mod services;
 
 use services::clipboard::{ClipboardContent, ClipboardError};
@@ -53,10 +54,21 @@ async fn get_settings(app: tauri::AppHandle) -> Result<AppSettings, SettingsErro
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .unwrap_or_else(|| AppSettings::default().ollama_endpoint);
 
+    let provider = store
+        .get("provider")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| AppSettings::default().provider);
+
+    let claude_cli_path = store
+        .get("claudeCliPath")
+        .and_then(|v| v.as_str().map(|s| s.to_string()));
+
     Ok(AppSettings {
         shortcut,
         ollama_model,
         ollama_endpoint,
+        provider,
+        claude_cli_path,
     })
 }
 
@@ -75,6 +87,8 @@ async fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(
         "ollamaEndpoint",
         serde_json::json!(settings.ollama_endpoint),
     );
+    store.set("provider", serde_json::json!(settings.provider));
+    store.set("claudeCliPath", serde_json::json!(settings.claude_cli_path));
 
     store
         .save()
@@ -94,6 +108,37 @@ async fn reset_settings(app: tauri::AppHandle) -> Result<AppSettings, SettingsEr
 // ============================================================================
 // 翻訳コマンド
 // ============================================================================
+
+/// テキストをClaude CLIで翻訳する
+///
+/// 言語検出はフロントエンドで行い、翻訳元・翻訳先言語を指定して呼び出す
+#[tauri::command]
+async fn translate_with_claude_cli(
+    app: tauri::AppHandle,
+    text: String,
+    source_lang: Language,
+    target_lang: Language,
+) -> Result<TranslationResult, TranslationError> {
+    use tauri_plugin_store::StoreExt;
+
+    // 設定からClaude CLIパスを取得
+    let claude_cli_path = app
+        .store("settings.json")
+        .ok()
+        .and_then(|store| {
+            store
+                .get("claudeCliPath")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+        });
+
+    llm::claude_cli::translate_with_claude_cli(
+        &text,
+        source_lang,
+        target_lang,
+        claude_cli_path.as_deref(),
+    )
+    .await
+}
 
 /// テキストを翻訳する
 ///
@@ -583,6 +628,7 @@ pub fn run() {
             save_settings,
             reset_settings,
             translate,
+            translate_with_claude_cli,
             translate_stream,
             check_provider_status,
             preload_ollama_model,
