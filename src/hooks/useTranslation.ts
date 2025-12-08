@@ -92,7 +92,7 @@ export function useTranslation(): UseTranslationReturn {
       }
 
       // Provider選択に応じて翻訳を実行
-      const provider = settings.provider || 'ollama'; // デフォルトはOllama
+      const provider = settings.provider;
       let result: TranslationResult;
 
       if (provider === 'claude-cli') {

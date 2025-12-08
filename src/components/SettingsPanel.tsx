@@ -298,7 +298,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   }, [ollamaModelInput, ollamaEndpointInput, updateSettings]);
 
   // Claude CLIパス検証
-  const validateClaudeCliPath = useCallback(async (path: string) => {
+  const validateClaudeCliPath = useCallback((path: string) => {
     if (!path) {
       setClaudeCliWarning('');
       return;
@@ -500,7 +500,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     value={claudeCliPathInput}
                     onChange={(value) => {
                       setClaudeCliPathInput(value);
-                      void validateClaudeCliPath(value);
+                      validateClaudeCliPath(value);
                     }}
                     placeholder="/opt/homebrew/bin/claude"
                   />
