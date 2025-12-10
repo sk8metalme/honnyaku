@@ -1,0 +1,244 @@
+{
+  "test_cases": [
+    {
+      "id": 1,
+      "category": "api_documentation",
+      "source_text": "Returns a list of users. The response includes pagination metadata and an array of user objects containing id, name, and email fields.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "ユーザーのリストを返します。レスポンスにはページネーションのメタデータと、id、name、emailフィールドを含むユーザーオブジェクトの配列が含まれます。"
+    },
+    {
+      "id": 2,
+      "category": "api_documentation",
+      "source_text": "このエンドポイントは認証が必要です。リクエストヘッダーにBearerトークンを含めてください。トークンの有効期限は24時間です。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "This endpoint requires authentication. Please include a Bearer token in the request header. The token is valid for 24 hours."
+    },
+    {
+      "id": 3,
+      "category": "api_documentation",
+      "source_text": "The GET /api/v1/posts endpoint supports filtering by category, status, and date range. Use query parameters such as ?category=tech&status=published.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "GET /api/v1/posts エンドポイントは、category、status、日付範囲によるフィルタリングをサポートしています。?category=tech&status=published などのクエリパラメータを使用してください。"
+    },
+    {
+      "id": 4,
+      "category": "api_documentation",
+      "source_text": "POST /api/users リクエストのボディには、name（必須）、email（必須）、age（オプション）のフィールドを含めることができます。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "The POST /api/users request body can include the following fields: name (required), email (required), and age (optional)."
+    },
+    {
+      "id": 5,
+      "category": "api_documentation",
+      "source_text": "Rate limiting is enforced at 100 requests per minute per API key. When the limit is exceeded, the API returns a 429 status code with a Retry-After header.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "レート制限はAPIキーごとに1分あたり100リクエストが適用されます。制限を超えた場合、APIは429ステータスコードとRetry-Afterヘッダーを返します。"
+    },
+    {
+      "id": 6,
+      "category": "api_documentation",
+      "source_text": "レスポンスは常にJSON形式で返されます。成功時のステータスコードは200または201です。エラー時は適切なHTTPステータスコードとエラーメッセージが返されます。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Responses are always returned in JSON format. The status code for successful requests is 200 or 201. In case of errors, an appropriate HTTP status code and error message are returned."
+    },
+    {
+      "id": 7,
+      "category": "api_documentation",
+      "source_text": "The DELETE /api/users/:id endpoint permanently removes a user from the database. This action cannot be undone. Returns 204 No Content on success.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "DELETE /api/users/:id エンドポイントは、データベースからユーザーを完全に削除します。この操作は元に戻せません。成功時は204 No Contentを返します。"
+    },
+    {
+      "id": 8,
+      "category": "api_documentation",
+      "source_text": "WebSocket接続を確立するには、/ws/notificationsエンドポイントに接続し、認証トークンをクエリパラメータとして渡してください。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "To establish a WebSocket connection, connect to the /ws/notifications endpoint and pass the authentication token as a query parameter."
+    },
+    {
+      "id": 9,
+      "category": "api_documentation",
+      "source_text": "The API supports both JSON and XML response formats. Specify your preferred format using the Accept header: application/json or application/xml.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "APIはJSONとXMLの両方のレスポンス形式をサポートしています。Acceptヘッダーを使用して希望する形式を指定してください：application/json または application/xml。"
+    },
+    {
+      "id": 10,
+      "category": "api_documentation",
+      "source_text": "バッチ処理エンドポイント POST /api/batch は、最大100件のリクエストを一度に処理できます。各リクエストは個別に検証され、部分的な成功が可能です。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "The batch processing endpoint POST /api/batch can process up to 100 requests at once. Each request is validated individually, allowing for partial success."
+    },
+    {
+      "id": 11,
+      "category": "error_message",
+      "source_text": "Connection timeout: Unable to reach the server. Please check your internet connection and try again.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "接続タイムアウト：サーバーに到達できません。インターネット接続を確認してから、もう一度お試しください。"
+    },
+    {
+      "id": 12,
+      "category": "error_message",
+      "source_text": "無効な認証トークンです。再度ログインしてください。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Invalid authentication token. Please log in again."
+    },
+    {
+      "id": 13,
+      "category": "error_message",
+      "source_text": "Validation failed: The email field must be a valid email address and the password must be at least 8 characters long.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "バリデーションエラー：emailフィールドは有効なメールアドレスである必要があり、passwordは8文字以上である必要があります。"
+    },
+    {
+      "id": 14,
+      "category": "error_message",
+      "source_text": "リソースが見つかりません。指定されたIDのユーザーは存在しません。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Resource not found. The user with the specified ID does not exist."
+    },
+    {
+      "id": 15,
+      "category": "error_message",
+      "source_text": "Rate limit exceeded. Too many requests. Please wait 60 seconds before trying again.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "レート制限を超えました。リクエストが多すぎます。60秒待ってから再度お試しください。"
+    },
+    {
+      "id": 16,
+      "category": "technical_blog",
+      "source_text": "React Hooks revolutionized the way we write React components. Instead of using class components with lifecycle methods, we can now use functional components with hooks like useState and useEffect to manage state and side effects.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "React Hooksは、Reactコンポーネントの書き方に革命をもたらしました。ライフサイクルメソッドを持つクラスコンポーネントを使う代わりに、useStateやuseEffectなどのhooksを使って状態と副作用を管理する関数コンポーネントを使えるようになりました。"
+    },
+    {
+      "id": 17,
+      "category": "technical_blog",
+      "source_text": "マイクロサービスアーキテクチャは、大規模なアプリケーションを小さく独立したサービスに分割することで、開発とデプロイの柔軟性を向上させます。各サービスは独自のデータベースを持ち、REST APIやメッセージキューを通じて通信します。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Microservices architecture improves development and deployment flexibility by dividing large applications into small, independent services. Each service has its own database and communicates through REST APIs or message queues."
+    },
+    {
+      "id": 18,
+      "category": "technical_blog",
+      "source_text": "TypeScript's type system helps catch bugs at compile time rather than runtime. By adding static types to JavaScript, developers can write more maintainable and reliable code, especially in large codebases.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "TypeScriptの型システムは、実行時ではなくコンパイル時にバグを検出するのに役立ちます。JavaScriptに静的型を追加することで、開発者は特に大規模なコードベースにおいて、より保守しやすく信頼性の高いコードを書くことができます。"
+    },
+    {
+      "id": 19,
+      "category": "technical_blog",
+      "source_text": "Dockerコンテナを使用することで、開発環境と本番環境の差異を最小限に抑えることができます。「自分の環境では動くのに」という問題を解決し、一貫性のあるデプロイを実現します。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Using Docker containers minimizes differences between development and production environments. It solves the \"it works on my machine\" problem and enables consistent deployments."
+    },
+    {
+      "id": 20,
+      "category": "technical_blog",
+      "source_text": "GraphQL provides a more efficient alternative to REST APIs by allowing clients to request exactly the data they need. This reduces over-fetching and under-fetching, resulting in faster and more responsive applications.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "GraphQLは、クライアントが必要なデータを正確にリクエストできるようにすることで、REST APIよりも効率的な代替手段を提供します。これにより過剰なフェッチや不足したフェッチが減少し、より高速でレスポンシブなアプリケーションが実現します。"
+    },
+    {
+      "id": 21,
+      "category": "technical_blog",
+      "source_text": "継続的インテグレーション（CI）とデプロイ（CD）のパイプラインを構築することで、コードの変更を自動的にテストし、本番環境にデプロイできます。これにより、リリースサイクルが短縮され、品質が向上します。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Building a continuous integration (CI) and deployment (CD) pipeline allows automatic testing of code changes and deployment to production. This shortens the release cycle and improves quality."
+    },
+    {
+      "id": 22,
+      "category": "technical_blog",
+      "source_text": "Serverless architecture eliminates the need to manage infrastructure, allowing developers to focus on writing code. Functions are executed on-demand and automatically scale based on traffic.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "サーバーレスアーキテクチャは、インフラストラクチャの管理の必要性を排除し、開発者がコードの記述に集中できるようにします。関数はオンデマンドで実行され、トラフィックに基づいて自動的にスケールします。"
+    },
+    {
+      "id": 23,
+      "category": "technical_blog",
+      "source_text": "キャッシング戦略を適切に実装することで、アプリケーションのパフォーマンスを大幅に向上させることができます。Redis や Memcached などのインメモリデータストアを使用すると、データベースへのアクセスを減らし、レスポンスタイムを短縮できます。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Implementing appropriate caching strategies can significantly improve application performance. Using in-memory data stores like Redis or Memcached reduces database access and shortens response times."
+    },
+    {
+      "id": 24,
+      "category": "technical_blog",
+      "source_text": "Test-driven development (TDD) encourages writing tests before implementing features. This approach leads to better code design, higher test coverage, and more confidence when refactoring.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "テスト駆動開発（TDD）は、機能を実装する前にテストを書くことを推奨します。このアプローチは、より良いコード設計、高いテストカバレッジ、そしてリファクタリング時のより高い信頼性につながります。"
+    },
+    {
+      "id": 25,
+      "category": "technical_blog",
+      "source_text": "セキュリティは開発プロセスの全段階で考慮する必要があります。SQLインジェクション、XSS、CSRF などの一般的な脆弱性から保護するために、入力検証、出力エスケープ、適切な認証・認可の実装が重要です。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Security must be considered at all stages of the development process. To protect against common vulnerabilities such as SQL injection, XSS, and CSRF, input validation, output escaping, and proper authentication and authorization implementation are important."
+    },
+    {
+      "id": 26,
+      "category": "code_comment",
+      "source_text": "Initialize the database connection pool with a maximum of 10 connections. This ensures optimal performance under high load.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "最大10接続でデータベース接続プールを初期化します。これにより、高負荷時の最適なパフォーマンスを保証します。"
+    },
+    {
+      "id": 27,
+      "category": "code_comment",
+      "source_text": "このメソッドは非推奨です。代わりに getUser() を使用してください。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "This method is deprecated. Please use getUser() instead."
+    },
+    {
+      "id": 28,
+      "category": "code_comment",
+      "source_text": "TODO: Implement error handling for network failures and add retry logic with exponential backoff.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "TODO：ネットワーク障害のエラーハンドリングを実装し、指数バックオフによるリトライロジックを追加する。"
+    },
+    {
+      "id": 29,
+      "category": "code_comment",
+      "source_text": "警告：この関数は入力を検証しません。呼び出し元で事前に検証を行ってください。",
+      "source_lang": "ja",
+      "target_lang": "en",
+      "expected_translation": "Warning: This function does not validate input. Please perform validation on the caller side beforehand."
+    },
+    {
+      "id": 30,
+      "category": "code_comment",
+      "source_text": "Cache the result for 5 minutes to reduce database load. The cache key is generated from the user ID and query parameters.",
+      "source_lang": "en",
+      "target_lang": "ja",
+      "expected_translation": "データベースの負荷を減らすために、結果を5分間キャッシュします。キャッシュキーはユーザーIDとクエリパラメータから生成されます。"
+    }
+  ]
+}

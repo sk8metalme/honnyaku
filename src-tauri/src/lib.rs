@@ -6,8 +6,8 @@
 #[macro_use]
 extern crate objc;
 
-mod llm;
-mod services;
+pub mod llm;
+pub mod services;
 
 use services::clipboard::{ClipboardContent, ClipboardError};
 use services::permissions::PermissionStatus;
