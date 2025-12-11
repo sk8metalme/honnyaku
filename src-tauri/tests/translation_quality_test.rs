@@ -35,12 +35,12 @@ struct EvaluationResult {
     source_text: String,
     actual_translation: String,
     expected_translation: String,
-    terminology_score: f32,    // 専門用語の正確性 (30点)
-    context_score: f32,         // 文脈理解と一貫性 (25点)
-    expression_score: f32,      // 自然な表現 (25点)
-    structure_score: f32,       // 構造とフォーマットの保持 (10点)
-    accuracy_score: f32,        // 技術的正確性 (10点)
-    total_score: f32,           // 合計 (100点)
+    terminology_score: f32, // 専門用語の正確性 (30点)
+    context_score: f32,     // 文脈理解と一貫性 (25点)
+    expression_score: f32,  // 自然な表現 (25点)
+    structure_score: f32,   // 構造とフォーマットの保持 (10点)
+    accuracy_score: f32,    // 技術的正確性 (10点)
+    total_score: f32,       // 合計 (100点)
 }
 
 /// 評価レポート
@@ -193,11 +193,10 @@ async fn test_translation_quality_evaluation() {
         .join("tests")
         .join("translation_quality_test_cases.json");
 
-    let content = fs::read_to_string(&test_cases_path)
-        .expect("テストケースファイルが読み込めません");
+    let content =
+        fs::read_to_string(&test_cases_path).expect("テストケースファイルが読み込めません");
 
-    let test_cases: TestCases =
-        serde_json::from_str(&content).expect("JSON解析エラー");
+    let test_cases: TestCases = serde_json::from_str(&content).expect("JSON解析エラー");
 
     println!("=== 翻訳品質評価テスト開始 ===");
     println!("テストケース数: {}", test_cases.test_cases.len());
@@ -220,8 +219,7 @@ async fn test_translation_quality_evaluation() {
         // 翻訳を実行
         print!("  翻訳実行中...");
         let translation_result =
-            translate_with_claude_cli(&test_case.source_text, source_lang, target_lang, None)
-                .await;
+            translate_with_claude_cli(&test_case.source_text, source_lang, target_lang, None).await;
 
         let actual_translation = match translation_result {
             Ok(result) => {
@@ -236,26 +234,25 @@ async fn test_translation_quality_evaluation() {
 
         // 評価を実行
         print!("  評価実行中...");
-        let (terminology, context, expression, structure, accuracy) =
-            match evaluate_translation(
-                &test_case.source_text,
-                &test_case.expected_translation,
-                &actual_translation,
-                &test_case.source_lang,
-                &test_case.target_lang,
-            )
-            .await
-            {
-                Ok(scores) => {
-                    println!(" 完了");
-                    scores
-                }
-                Err(e) => {
-                    println!(" エラー: {}", e);
-                    // エラー時はデフォルトスコア（50点相当）
-                    (15.0, 12.5, 12.5, 5.0, 5.0)
-                }
-            };
+        let (terminology, context, expression, structure, accuracy) = match evaluate_translation(
+            &test_case.source_text,
+            &test_case.expected_translation,
+            &actual_translation,
+            &test_case.source_lang,
+            &test_case.target_lang,
+        )
+        .await
+        {
+            Ok(scores) => {
+                println!(" 完了");
+                scores
+            }
+            Err(e) => {
+                println!(" エラー: {}", e);
+                // エラー時はデフォルトスコア（50点相当）
+                (15.0, 12.5, 12.5, 5.0, 5.0)
+            }
+        };
 
         let total = terminology + context + expression + structure + accuracy;
 
@@ -280,8 +277,8 @@ async fn test_translation_quality_evaluation() {
     }
 
     // 統計を計算
-    let average_score: f32 = results.iter().map(|r| r.total_score).sum::<f32>()
-        / results.len() as f32;
+    let average_score: f32 =
+        results.iter().map(|r| r.total_score).sum::<f32>() / results.len() as f32;
 
     // カテゴリ別統計
     let categories = vec![
@@ -293,16 +290,10 @@ async fn test_translation_quality_evaluation() {
     let mut category_scores = Vec::new();
 
     for category in categories {
-        let category_results: Vec<_> = results
-            .iter()
-            .filter(|r| r.category == category)
-            .collect();
+        let category_results: Vec<_> = results.iter().filter(|r| r.category == category).collect();
 
         if !category_results.is_empty() {
-            let avg = category_results
-                .iter()
-                .map(|r| r.total_score)
-                .sum::<f32>()
+            let avg = category_results.iter().map(|r| r.total_score).sum::<f32>()
                 / category_results.len() as f32;
             let min = category_results
                 .iter()
@@ -369,5 +360,8 @@ async fn test_translation_quality_evaluation() {
         average_score
     );
 
-    println!("\n✅ 品質目標達成: {:.1}/100 (目標: 80/100以上)", average_score);
+    println!(
+        "\n✅ 品質目標達成: {:.1}/100 (目標: 80/100以上)",
+        average_score
+    );
 }

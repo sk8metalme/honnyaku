@@ -208,10 +208,7 @@ pub async fn translate_with_claude_cli(
         .await
         .map_err(|_| TranslationError::Timeout)?
         .map_err(|e| {
-            TranslationError::ConnectionFailed(format!(
-                "Claude CLIの実行に失敗しました: {}",
-                e
-            ))
+            TranslationError::ConnectionFailed(format!("Claude CLIの実行に失敗しました: {}", e))
         })?;
 
     // Exit codeの検証
@@ -329,7 +326,10 @@ mod tests {
         );
 
         // 翻訳ルールセクションの存在を確認（基本的な構造のみ、詳細はタスク1.2-1.4で実装）
-        assert!(prompt.contains("翻訳ルール"), "翻訳ルールセクションが見つかりません");
+        assert!(
+            prompt.contains("翻訳ルール"),
+            "翻訳ルールセクションが見つかりません"
+        );
 
         // 品質ガイドラインセクションの存在を確認（基本的な構造のみ、詳細はタスク1.4で実装）
         assert!(
@@ -389,7 +389,9 @@ mod tests {
 
         // プログラミング用語の保持ルール
         assert!(
-            prompt.contains("プログラミング") || prompt.contains("キーワード") || prompt.contains("識別子"),
+            prompt.contains("プログラミング")
+                || prompt.contains("キーワード")
+                || prompt.contains("識別子"),
             "プログラミング用語保持ルールが見つかりません"
         );
 
@@ -425,13 +427,16 @@ mod tests {
 
         // Programming terms preservation
         assert!(
-            prompt.contains("programming") || prompt.contains("keywords") || prompt.contains("identifiers"),
+            prompt.contains("programming")
+                || prompt.contains("keywords")
+                || prompt.contains("identifiers"),
             "プログラミング用語保持ルール（英語）が見つかりません"
         );
 
         // Code block non-translation rule
         assert!(
-            prompt.contains("code") && (prompt.contains("preserve") || prompt.contains("not translate")),
+            prompt.contains("code")
+                && (prompt.contains("preserve") || prompt.contains("not translate")),
             "コードブロック非翻訳ルール（英語）が見つかりません"
         );
 
@@ -449,8 +454,16 @@ mod tests {
 
         // 10種類の基本用語が含まれることを確認
         let required_terms = vec![
-            "API", "framework", "library", "module", "function",
-            "variable", "interface", "class", "object", "array"
+            "API",
+            "framework",
+            "library",
+            "module",
+            "function",
+            "variable",
+            "interface",
+            "class",
+            "object",
+            "array",
         ];
 
         for term in required_terms {
@@ -487,8 +500,16 @@ mod tests {
 
         // 10種類の基本用語が含まれることを確認
         let required_terms = vec![
-            "API", "framework", "library", "module", "function",
-            "variable", "interface", "class", "object", "array"
+            "API",
+            "framework",
+            "library",
+            "module",
+            "function",
+            "variable",
+            "interface",
+            "class",
+            "object",
+            "array",
         ];
 
         for term in required_terms {
@@ -573,7 +594,8 @@ mod tests {
 
         // Natural expression
         assert!(
-            prompt.contains("natural") && (prompt.contains("expression") || prompt.contains("readable")),
+            prompt.contains("natural")
+                && (prompt.contains("expression") || prompt.contains("readable")),
             "自然な表現ルール（英語）が見つかりません"
         );
 
@@ -597,27 +619,11 @@ mod tests {
         let prompt_ja_to_en = build_system_prompt(Language::Japanese, Language::English);
 
         // トークン数近似計算（英語: 4文字/トークン、日本語: 2文字/トークン）
-        let estimate_en_to_ja = prompt_en_to_ja
-            .chars()
-            .filter(|c| c.is_ascii())
-            .count()
-            / 4
-            + prompt_en_to_ja
-                .chars()
-                .filter(|c| !c.is_ascii())
-                .count()
-                / 2;
+        let estimate_en_to_ja = prompt_en_to_ja.chars().filter(|c| c.is_ascii()).count() / 4
+            + prompt_en_to_ja.chars().filter(|c| !c.is_ascii()).count() / 2;
 
-        let estimate_ja_to_en = prompt_ja_to_en
-            .chars()
-            .filter(|c| c.is_ascii())
-            .count()
-            / 4
-            + prompt_ja_to_en
-                .chars()
-                .filter(|c| !c.is_ascii())
-                .count()
-                / 2;
+        let estimate_ja_to_en = prompt_ja_to_en.chars().filter(|c| c.is_ascii()).count() / 4
+            + prompt_ja_to_en.chars().filter(|c| !c.is_ascii()).count() / 2;
 
         assert!(
             estimate_en_to_ja <= 2000,

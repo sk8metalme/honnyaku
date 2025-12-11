@@ -122,14 +122,11 @@ async fn translate_with_claude_cli(
     use tauri_plugin_store::StoreExt;
 
     // 設定からClaude CLIパスを取得
-    let claude_cli_path = app
-        .store("settings.json")
-        .ok()
-        .and_then(|store| {
-            store
-                .get("claudeCliPath")
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-        });
+    let claude_cli_path = app.store("settings.json").ok().and_then(|store| {
+        store
+            .get("claudeCliPath")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    });
 
     llm::claude_cli::translate_with_claude_cli(
         &text,
