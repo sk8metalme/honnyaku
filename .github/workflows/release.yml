@@ -14,9 +14,6 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: aarch64
-          - platform: macos-14-large
-            target: x86_64-apple-darwin
-            arch: x64
     runs-on: ${{ matrix.platform }}
     permissions:
       contents: write
@@ -59,18 +56,16 @@ jobs:
 
             ## インストール方法
 
-            ### macOS (Apple Silicon - M1/M2/M3)
+            ### macOS (Apple Silicon - M1/M2/M3/M4)
             1. `honnyaku_${{ github.ref_name }}_aarch64.dmg` をダウンロード
             2. DMGファイルを開き、Honnyaku.appをアプリケーションフォルダにドラッグ
             3. アプリケーションフォルダからHonnyakuを起動
 
-            ### macOS (Intel Mac)
-            1. `honnyaku_${{ github.ref_name }}_x64.dmg` をダウンロード
-            2. DMGファイルを開き、Honnyaku.appをアプリケーションフォルダにドラッグ
-            3. アプリケーションフォルダからHonnyakuを起動
+            **注意:** v0.5.1以降、Intel Mac (x64)のサポートは一時停止しています。Apple Siliconのみをサポートします。
 
             ### 必要要件
             - macOS 12.0 (Monterey) 以上
+            - Apple Silicon (M1/M2/M3/M4) プロセッサ
             - [Ollama](https://ollama.ai) のインストールと設定
             - アクセシビリティ権限の許可
 

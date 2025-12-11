@@ -9,16 +9,22 @@
 
 ## [0.5.1] - 2025-12-11
 
+### 重要な変更
+- **Intel Macサポートの一時停止**
+  - GitHub Actionsの課金制限により、Intel Mac (x86_64)ビルドを一時停止
+  - v0.5.1以降はApple Silicon (M1/M2/M3/M4)のみをサポート
+  - Intel Macユーザーは引き続きv0.5.0をご利用ください
+
 ### 修正
 - **CI/CD**
   - GitHub Actions macOS-13ランナーイメージの廃止に対応
-  - Intel Mac (x86_64)ビルド用のランナーをmacos-14-largeに更新
+  - 無料ランナー(macos-latest)のみを使用してビルドを実行
   - リリースビルドの安定性を向上
 
 ### 技術的詳細
 - macOS-13ランナーは2025年12月4日に完全廃止予定
-- macos-14-largeは安定したIntel Mac用ランナーとして推奨
-- ビルドターゲットや出力に変更なし（Apple SiliconとIntel Macの両方をサポート）
+- 有料ランナー(macos-14-large)は課金制限のため使用停止
+- Apple Siliconのみのビルドに変更
 
 ## [0.5.0] - 2025-12-11
 
