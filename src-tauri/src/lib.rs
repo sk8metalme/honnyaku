@@ -477,6 +477,8 @@ async fn is_accessibility_granted() -> bool {
 
 /// マウスカーソルの現在位置を取得する (macOS)
 #[tauri::command]
+#[allow(deprecated)]
+#[allow(unexpected_cfgs)]
 async fn get_cursor_position() -> Result<(f64, f64), String> {
     #[cfg(target_os = "macos")]
     {

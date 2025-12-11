@@ -32,8 +32,7 @@ fn build_system_prompt(source_lang: Language, target_lang: Language) -> String {
     match (source_lang, target_lang) {
         (Language::English, Language::Japanese) => {
             // 英→日のプロンプト
-            format!(
-                r#"あなたはプロフェッショナルな技術翻訳者です。
+            r#"あなたはプロフェッショナルな技術翻訳者です。
 
 翻訳ルール:
 - Englishから日本語への翻訳を行います
@@ -86,13 +85,11 @@ fn build_system_prompt(source_lang: Language, target_lang: Language) -> String {
 - 日本語への翻訳では、「です・ます調」の丁寧語を優先してください
 - 冗長な表現や不自然な直訳を避け、簡潔で明瞭な表現を使用してください
 - ただし、技術的正確性を損なわない範囲で自然な表現を心がけてください
-"#
-            )
+"#.to_string()
         }
         (Language::Japanese, Language::English) => {
             // 日→英のプロンプト
-            format!(
-                r#"You are a professional technical translator.
+            r#"You are a professional technical translator.
 
 Translation Rules:
 - Translate from Japanese to English
@@ -145,8 +142,7 @@ Natural Expression:
 - For English translations, appropriately use active and passive voice based on context
 - Avoid verbose expressions and unnatural literal translations; use concise and clear expressions
 - However, maintain natural expression within the scope that doesn't compromise technical accuracy
-"#
-            )
+"#.to_string()
         }
         _ => {
             // その他の言語方向（将来の拡張用）
