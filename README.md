@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/sk8metalme/honnyaku/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sk8metalme/honnyaku/ci.yml?branch=main&label=CI" alt="CI"></a>
   <a href="https://github.com/sk8metalme/honnyaku/releases"><img src="https://img.shields.io/github/v/release/sk8metalme/honnyaku" alt="Release"></a>
-  <a href="https://github.com/sk8metalme/honnyaku/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sk8metalme/honnyaku" alt="License"></a>
+  <a href="https://github.com/sk8metalme/honnyaku/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sk8metalme/honnyaku?cacheSeconds=3600" alt="License"></a>
   <a href="https://github.com/sk8metalme/honnyaku"><img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="Platform"></a>
 </p>
 
