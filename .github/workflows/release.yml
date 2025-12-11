@@ -20,6 +20,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify version
+        run: |
+          echo "Tag: ${{ github.ref_name }}"
+          echo "Cargo.toml version:"
+          grep '^version = ' src-tauri/Cargo.toml
+          echo "package.json version:"
+          grep '"version":' package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
