@@ -1,6 +1,6 @@
 [package]
 name = "honnyaku"
-version = "0.5.1"
+version = "0.5.2"
 description = "AI-powered translation desktop app"
 authors = ["honnyaku"]
 edition = "2021"
@@ -29,6 +29,7 @@ futures = "0.3"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
 objc = "0.2"
+core-foundation = "0.10"
 
 [dev-dependencies]
 chrono = "0.4"
