@@ -7,9 +7,11 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-12-11
+
 ### 追加
 - **翻訳品質向上機能**
-  - Claude CLI翻訳のシステムプロンプトを最適化し、翻訳品質スコアを50/100から80/100以上に向上
+  - Claude CLI翻訳のシステムプロンプトを最適化し、翻訳品質スコアを50/100から77.1/100（平均）に向上
   - 3セクション構成のプロンプト実装（役割定義・翻訳ルール・品質ガイドライン）
   - 技術文書特化型翻訳ルールを導入（プログラミング用語保持、コードスニペット非翻訳化、APIエンドポイント保持）
   - 10種類の基本技術用語の専門用語辞書を統合（API、framework、library、module、function、variable、interface、class、object、array）
@@ -18,16 +20,34 @@
   - 自然な表現変換ガイドライン（日本語では「です・ます調」優先、英語では能動態/受動態の適切な使い分け）
   - プロンプトキャッシング最適化（2000トークン以内に制限）
 
+- **自動品質評価システム**
+  - 30サンプルの統合テストを実装
+  - Claude CLIによる自動品質評価機能
+  - JSON形式の詳細レポート生成
+  - カテゴリ別品質スコア測定
+    - API Documentation: 91.4/100
+    - Technical Blog: 84.6/100
+    - Code Comment: 76.6/100
+    - Error Message: 34.2/100（評価エラーあり - [Issue #10](https://github.com/sk8metalme/honnyaku/issues/10)で追跡中）
+
 ### 技術的詳細
 - システムプロンプトは`build_system_prompt`関数で動的に生成
 - 翻訳方向（英→日、日→英）に応じて異なるプロンプトを自動選択
 - 既存のClaude CLI翻訳機能やOllama翻訳機能との完全な互換性を維持
-- 既存のテストスイート（フロントエンド9テスト、バックエンド60テスト）は全てパス
+- テストカバレッジ:
+  - 単体テスト: 70 passed
+  - フロントエンド統合テスト: 81 passed
+  - 品質評価テスト: 30サンプル
+  - 総合カバレッジ: 95%以上を維持
 
 ### 下位互換性
 - 既存のAPIやインターフェースに変更なし
 - ユーザー設定や翻訳フローに影響なし
 - アプリケーション更新時に自動的に最適化されたプロンプトを使用
+
+### 既知の問題
+- エラーメッセージカテゴリの評価エラー（[Issue #10](https://github.com/sk8metalme/honnyaku/issues/10)）
+- 一部サンプルでの評価タイムアウト
 
 ## [0.4.0] - 2025-12-06
 
@@ -123,7 +143,8 @@
 - macOS 12.0 (Monterey) 以上
 - Apple Silicon (arm64) ネイティブサポート
 
-[Unreleased]: https://github.com/sk8metalme/honnyaku/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sk8metalme/honnyaku/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sk8metalme/honnyaku/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sk8metalme/honnyaku/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/sk8metalme/honnyaku/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sk8metalme/honnyaku/compare/v0.1.0...v0.2.0
