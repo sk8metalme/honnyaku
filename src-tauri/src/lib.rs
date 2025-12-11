@@ -465,10 +465,38 @@ async fn request_accessibility_permission_prompt() -> PermissionStatus {
     }
 }
 
+/// macOSネイティブAPIを使用してアクセシビリティ権限を直接確認する
+#[cfg(target_os = "macos")]
+fn check_accessibility_native() -> bool {
+    unsafe {
+        // オプションなしでチェック（プロンプト表示なし）
+        let result = AXIsProcessTrusted();
+        result != 0
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    /// アクセシビリティ権限がプロセスに付与されているかを確認
+    /// 戻り値: 0 = 未許可, 非ゼロ = 許可済み
+    fn AXIsProcessTrusted() -> u8;
+}
+
 /// アクセシビリティ権限が付与されているか確認する
 #[tauri::command]
-async fn is_accessibility_granted() -> bool {
-    tauri_plugin_macos_permissions::check_accessibility_permission().await
+fn is_accessibility_granted() -> bool {
+    // ネイティブAPIの結果を取得（macOSの場合）
+    #[cfg(target_os = "macos")]
+    {
+        check_accessibility_native()
+    }
+
+    // macOS以外の場合はfalseを返す
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
 }
 
 // ============================================================================

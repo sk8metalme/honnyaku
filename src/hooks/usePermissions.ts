@@ -94,11 +94,40 @@ export function usePermissions(): UsePermissionsReturn {
         'request_accessibility_permission_prompt'
       );
       setIsAccessibilityGranted(status.accessibilityGranted);
+
+      // 権限が付与されていない場合、ポーリングで再チェック
+      if (!status.accessibilityGranted) {
+        let retries = 0;
+        const maxRetries = 10; // 最大10秒間（1秒×10回）
+        const pollingInterval = 1000; // 1秒ごと
+
+        const pollingTimer = setInterval(async () => {
+          try {
+            const granted = await invoke<boolean>('is_accessibility_granted');
+            if (granted) {
+              setIsAccessibilityGranted(true);
+              clearInterval(pollingTimer);
+              setIsChecking(false);
+            } else {
+              retries++;
+              if (retries >= maxRetries) {
+                clearInterval(pollingTimer);
+                setIsChecking(false);
+              }
+            }
+          } catch (pollErr) {
+            console.error('Polling error:', pollErr);
+            clearInterval(pollingTimer);
+            setIsChecking(false);
+          }
+        }, pollingInterval);
+      } else {
+        setIsChecking(false);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
       console.error('Failed to request accessibility permission:', err);
-    } finally {
       setIsChecking(false);
     }
   }, []);
