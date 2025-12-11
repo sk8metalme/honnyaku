@@ -435,7 +435,12 @@ async fn unregister_all_shortcuts(app: tauri::AppHandle) -> Result<(), ShortcutE
 /// アクセシビリティ権限の状態を確認する
 #[tauri::command]
 async fn check_accessibility_permission_status() -> PermissionStatus {
-    let is_granted = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+    // ネイティブAPIを使用して権限を確認（最も信頼できる）
+    #[cfg(target_os = "macos")]
+    let is_granted = check_accessibility_native();
+
+    #[cfg(not(target_os = "macos"))]
+    let is_granted = false;
 
     PermissionStatus {
         accessibility_granted: is_granted,
@@ -448,16 +453,24 @@ async fn check_accessibility_permission_status() -> PermissionStatus {
 /// システム環境設定のアクセシビリティページを開く
 #[tauri::command]
 async fn request_accessibility_permission_prompt() -> PermissionStatus {
-    // 現在の権限状態を確認
-    let is_granted = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+    // ネイティブAPIを使用して現在の権限状態を確認
+    #[cfg(target_os = "macos")]
+    let is_granted = check_accessibility_native();
+
+    #[cfg(not(target_os = "macos"))]
+    let is_granted = false;
 
     if !is_granted {
         // 権限が付与されていない場合は、システムダイアログを表示
         tauri_plugin_macos_permissions::request_accessibility_permission().await;
     }
 
-    // 再度権限状態を確認（ダイアログ表示後は即座に反映されないことがある）
-    let is_granted_after = tauri_plugin_macos_permissions::check_accessibility_permission().await;
+    // 再度ネイティブAPIで権限状態を確認（ダイアログ表示後は即座に反映されないことがある）
+    #[cfg(target_os = "macos")]
+    let is_granted_after = check_accessibility_native();
+
+    #[cfg(not(target_os = "macos"))]
+    let is_granted_after = false;
 
     PermissionStatus {
         accessibility_granted: is_granted_after,

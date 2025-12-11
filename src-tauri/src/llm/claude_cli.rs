@@ -189,6 +189,7 @@ pub async fn translate_with_claude_cli(
     let system_prompt = build_system_prompt(source_lang, target_lang);
 
     // コマンドの構築と実行
+    // -pフラグでプロンプトモードを使用し、純粋な翻訳モードにする
     let child = Command::new(cli_command)
         .arg("-p")
         .arg("--system-prompt")
