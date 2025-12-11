@@ -1,6 +1,6 @@
 [package]
 name = "honnyaku"
-version = "0.5.2"
+version = "0.5.3"
 description = "AI-powered translation desktop app"
 authors = ["honnyaku"]
 edition = "2021"

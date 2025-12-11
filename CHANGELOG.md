@@ -7,6 +7,18 @@
 
 ## [Unreleased]
 
+## [0.5.3] - 2025-12-11
+
+### 修正
+- **アクセシビリティ権限チェックの統一**
+  - すべての権限チェックでネイティブAPI (`AXIsProcessTrusted`) を使用するように統一
+  - `check_accessibility_permission_status`と`request_accessibility_permission_prompt`で一貫した権限チェックを実現
+  - システム環境設定で許可した権限がアプリ上でも正確に反映されるように改善
+
+- **Claude CLI翻訳の安定性向上**
+  - 不要な`--tools`フラグを削除し、コマンド実行の安定性を向上
+  - Claude CLI翻訳がより確実に動作するように修正
+
 ## [0.5.2] - 2025-12-11
 
 ### 修正
