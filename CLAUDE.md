@@ -43,3 +43,128 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 - Load entire `.kiro/steering/` as project memory
 - Default files: `product.md`, `tech.md`, `structure.md`
 - Custom files are supported (managed via `/kiro:steering-custom`)
+
+## Release Process
+
+### Prerequisites
+- All changes must be merged to `main` branch via PR
+- Never commit directly to `main` branch
+- Use feature branches: `fix/*`, `bugfix/*`, `feature/*`
+
+### Version Update Checklist
+When creating a new release, update ALL of the following files:
+
+1. **`package.json`** - Frontend version
+2. **`src-tauri/Cargo.toml`** - Backend version
+3. **`src-tauri/tauri.conf.json`** - ⚠️ CRITICAL: Tauri config version (used for DMG filename)
+4. **`CHANGELOG.md`** - Add release notes
+5. **`src-tauri/Cargo.lock`** - Update with `cd src-tauri && cargo update -p honnyaku`
+
+### Release Steps
+
+#### 1. Create Feature Branch
+```bash
+git checkout -b fix/your-fix-name
+# Make changes and commit
+git add .
+git commit -m "fix: description"
+git push -u origin fix/your-fix-name
+```
+
+#### 2. Create and Merge PR
+```bash
+gh pr create --title "fix: description" --body "PR description"
+gh pr merge <pr-number> --squash --delete-branch
+```
+
+#### 3. Update Versions on Main
+```bash
+git checkout main
+git pull
+
+# Update all version files (see checklist above)
+# Example for version 0.5.3:
+# - package.json: "version": "0.5.3"
+# - src-tauri/Cargo.toml: version = "0.5.3"
+# - src-tauri/tauri.conf.json: "version": "0.5.3"
+# - CHANGELOG.md: Add ## [0.5.3] section
+
+cd src-tauri && cargo update -p honnyaku && cd ..
+
+git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Cargo.lock CHANGELOG.md
+git commit -m "docs: update CHANGELOG and version to vX.Y.Z"
+git push origin main
+```
+
+#### 4. Create Tag and Release
+```bash
+# Create tag
+git tag -a vX.Y.Z -m "Release vX.Y.Z
+
+## Changes
+- Change 1
+- Change 2
+"
+git push origin vX.Y.Z
+
+# Create GitHub Release (GitHub Actions will build automatically)
+gh release create vX.Y.Z \
+  --title "vX.Y.Z" \
+  --notes "Release notes here" \
+  --verify-tag
+```
+
+#### 5. Verify Build
+- Check GitHub Actions: https://github.com/sk8metalme/honnyaku/actions
+- Verify DMG filename is `honnyaku_X.Y.Z_aarch64.dmg` (not old version)
+- Check release page: https://github.com/sk8metalme/honnyaku/releases
+
+### Troubleshooting
+
+#### Problem: DMG filename shows old version
+**Cause**: `src-tauri/tauri.conf.json` version was not updated
+
+**Solution**:
+1. Update `tauri.conf.json` version
+2. Commit and push
+3. Delete tag and release: `gh release delete vX.Y.Z --yes && git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`
+4. Recreate tag and release
+
+#### Problem: Build fails with version mismatch
+**Cause**: `Cargo.lock` not updated
+
+**Solution**:
+```bash
+cd src-tauri
+cargo update -p honnyaku
+cd ..
+git add src-tauri/Cargo.lock
+git commit -m "chore: update Cargo.lock"
+git push origin main
+# Recreate tag
+```
+
+#### Problem: Committed to main directly
+**Cause**: Forgot to create feature branch
+
+**Solution**:
+```bash
+# Reset last commit (keep changes staged)
+git reset HEAD~1 --soft
+
+# Create feature branch
+git checkout -b fix/your-fix-name
+
+# Re-commit
+git commit -m "fix: description"
+git push -u origin fix/your-fix-name
+
+# Create PR
+gh pr create --title "fix: description" --body "Description"
+```
+
+### Automated Verification
+The release workflow includes automatic version verification:
+- Verifies `Cargo.toml` version matches tag
+- Verifies `package.json` version matches tag
+- Check workflow logs if build produces wrong version
