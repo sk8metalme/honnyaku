@@ -6,8 +6,8 @@
 #[macro_use]
 extern crate objc;
 
-mod llm;
-mod services;
+pub mod llm;
+pub mod services;
 
 use services::clipboard::{ClipboardContent, ClipboardError};
 use services::permissions::PermissionStatus;
@@ -122,14 +122,11 @@ async fn translate_with_claude_cli(
     use tauri_plugin_store::StoreExt;
 
     // 設定からClaude CLIパスを取得
-    let claude_cli_path = app
-        .store("settings.json")
-        .ok()
-        .and_then(|store| {
-            store
-                .get("claudeCliPath")
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-        });
+    let claude_cli_path = app.store("settings.json").ok().and_then(|store| {
+        store
+            .get("claudeCliPath")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    });
 
     llm::claude_cli::translate_with_claude_cli(
         &text,
@@ -480,6 +477,8 @@ async fn is_accessibility_granted() -> bool {
 
 /// マウスカーソルの現在位置を取得する (macOS)
 #[tauri::command]
+#[allow(deprecated)]
+#[allow(unexpected_cfgs)]
 async fn get_cursor_position() -> Result<(f64, f64), String> {
     #[cfg(target_os = "macos")]
     {

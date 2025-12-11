@@ -60,66 +60,69 @@ export function useTranslation(): UseTranslationReturn {
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const translate = useCallback(async (text: string) => {
-    // 空テキストのバリデーション
-    const trimmedText = text.trim();
-    if (!trimmedText) {
-      setError('翻訳するテキストが入力されていません');
-      return;
-    }
-
-    setIsLoading(true);
-    setOriginalText(text);
-    setTranslatedText(null);
-    setError(null);
-
-    try {
-      // 言語検出
-      const detection = detectLanguage(trimmedText);
-
-      // 翻訳方向を決定
-      let sourceLang: Language;
-      let targetLang: Language;
-
-      if (detection.confidence >= CONFIDENCE_THRESHOLD) {
-        // 信頼度が高い場合は検出結果を使用
-        sourceLang = detection.language;
-        targetLang = detection.language === 'ja' ? 'en' : 'ja';
-      } else {
-        // 信頼度が低い場合はデフォルト（日→英）を使用
-        sourceLang = DEFAULT_SOURCE_LANG;
-        targetLang = DEFAULT_TARGET_LANG;
+  const translate = useCallback(
+    async (text: string) => {
+      // 空テキストのバリデーション
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+        setError('翻訳するテキストが入力されていません');
+        return;
       }
 
-      // Provider選択に応じて翻訳を実行
-      const provider = settings.provider;
-      let result: TranslationResult;
+      setIsLoading(true);
+      setOriginalText(text);
+      setTranslatedText(null);
+      setError(null);
 
-      if (provider === 'claude-cli') {
-        // Claude CLI翻訳
-        result = await translateWithClaudeCLI(
-          trimmedText,
-          toBackendLanguage(sourceLang),
-          toBackendLanguage(targetLang)
-        );
-      } else {
-        // Ollama翻訳（既存ロジック）
-        result = await invoke<TranslationResult>('translate', {
-          text: trimmedText,
-          sourceLang: toBackendLanguage(sourceLang),
-          targetLang: toBackendLanguage(targetLang),
-        });
+      try {
+        // 言語検出
+        const detection = detectLanguage(trimmedText);
+
+        // 翻訳方向を決定
+        let sourceLang: Language;
+        let targetLang: Language;
+
+        if (detection.confidence >= CONFIDENCE_THRESHOLD) {
+          // 信頼度が高い場合は検出結果を使用
+          sourceLang = detection.language;
+          targetLang = detection.language === 'ja' ? 'en' : 'ja';
+        } else {
+          // 信頼度が低い場合はデフォルト（日→英）を使用
+          sourceLang = DEFAULT_SOURCE_LANG;
+          targetLang = DEFAULT_TARGET_LANG;
+        }
+
+        // Provider選択に応じて翻訳を実行
+        const provider = settings.provider;
+        let result: TranslationResult;
+
+        if (provider === 'claude-cli') {
+          // Claude CLI翻訳
+          result = await translateWithClaudeCLI(
+            trimmedText,
+            toBackendLanguage(sourceLang),
+            toBackendLanguage(targetLang)
+          );
+        } else {
+          // Ollama翻訳（既存ロジック）
+          result = await invoke<TranslationResult>('translate', {
+            text: trimmedText,
+            sourceLang: toBackendLanguage(sourceLang),
+            targetLang: toBackendLanguage(targetLang),
+          });
+        }
+
+        setTranslatedText(result.translatedText);
+      } catch (err) {
+        // エラーメッセージを設定
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+      } finally {
+        setIsLoading(false);
       }
-
-      setTranslatedText(result.translatedText);
-    } catch (err) {
-      // エラーメッセージを設定
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [settings.provider]);
+    },
+    [settings.provider]
+  );
 
   const reset = useCallback(() => {
     setIsLoading(false);

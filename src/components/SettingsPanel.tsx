@@ -224,9 +224,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [ollamaEndpointInput, setOllamaEndpointInput] = useState(
     () => settings.ollamaEndpoint
   );
-  const [providerInput, setProviderInput] = useState(
-    () => settings.provider
-  );
+  const [providerInput, setProviderInput] = useState(() => settings.provider);
   const [claudeCliPathInput, setClaudeCliPathInput] = useState(
     () => settings.claudeCliPath || ''
   );
@@ -510,7 +508,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     </p>
                   )}
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Claude CLIの実行パスを指定してください。空の場合はデフォルトの "claude" コマンドを使用します。
+                    Claude
+                    CLIの実行パスを指定してください。空の場合はデフォルトの
+                    "claude" コマンドを使用します。
                   </p>
                 </div>
               )}

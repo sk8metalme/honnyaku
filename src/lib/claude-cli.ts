@@ -22,11 +22,14 @@ export async function translateWithClaudeCLI(
   targetLang: BackendLanguage
 ): Promise<TranslationResult> {
   try {
-    const result = await invoke<TranslationResult>('translate_with_claude_cli', {
-      text,
-      sourceLang,
-      targetLang,
-    });
+    const result = await invoke<TranslationResult>(
+      'translate_with_claude_cli',
+      {
+        text,
+        sourceLang,
+        targetLang,
+      }
+    );
     return result;
   } catch (error) {
     // Tauri IPCエラーを適切なエラーメッセージに変換
