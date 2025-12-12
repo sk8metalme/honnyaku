@@ -141,8 +141,21 @@ xattr -d com.apple.quarantine /Applications/honnyaku.app
 
 このコマンドを実行しないと、アプリケーションが正しく起動しない場合があります。
 
-### 4. アプリケーションを起動
-アプリケーションフォルダから honnyaku を起動してください。
+### 4. アクセシビリティ権限の設定
+1. アプリケーションを起動
+2. システム環境設定 > プライバシーとセキュリティ > アクセシビリティ
+3. Honnyakuにチェックを入れる
+
+**権限が正しく反映されない場合**：
+
+以下のコマンドで権限をリセットしてから再設定してください：
+
+\`\`\`bash
+# アクセシビリティ権限をリセット
+tccutil reset Accessibility com.honnyaku.translation
+\`\`\`
+
+その後、システム環境設定で再度権限を許可し、**アプリを完全に再起動**（Cmd+Qで終了してから再度起動）してください。
 ```
 
 ### Troubleshooting
@@ -188,6 +201,28 @@ git push -u origin fix/your-fix-name
 # Create PR
 gh pr create --title "fix: description" --body "Description"
 ```
+
+#### Problem: Accessibility permission not reflecting in app
+**Cause**: Stale TCC (Transparency, Consent, and Control) database entry
+
+**Solution**:
+```bash
+# Reset accessibility permission
+tccutil reset Accessibility com.honnyaku.translation
+```
+
+Then:
+1. Go to System Settings > Privacy & Security > Accessibility
+2. Grant permission to Honnyaku
+3. **Completely restart the app** (Quit with Cmd+Q, then relaunch)
+
+**Additional troubleshooting**:
+- If the app doesn't appear in the Accessibility list, try removing the quarantine attribute:
+  ```bash
+  xattr -d com.apple.quarantine /Applications/honnyaku.app
+  ```
+- Check debug info using the "デバッグ情報を表示" button in settings
+- Verify Bundle ID is `com.honnyaku.translation`
 
 ### Automated Verification
 The release workflow includes automatic version verification:
