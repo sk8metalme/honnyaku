@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useShortcut } from '@/hooks/useShortcut';
@@ -207,7 +208,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { settings, updateSettings, checkProviderStatus } =
     useSettingsContext();
 
-  const { isAccessibilityGranted, requestAccessibility } = usePermissions();
+  const { isAccessibilityGranted, requestAccessibility, checkAccessibility, isChecking: isCheckingPermission } = usePermissions();
+  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const {
     isRegistered: shortcutRegistered,
@@ -327,6 +330,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   }, [checkProviderStatus]);
 
+  // デバッグ情報を取得
+  const handleGetDebugInfo = useCallback(async () => {
+    try {
+      const info = await invoke<string>('get_accessibility_debug_info');
+      setDebugInfo(info);
+      setShowDebugInfo(true);
+    } catch (err) {
+      console.error('Failed to get debug info:', err);
+      setDebugInfo('デバッグ情報の取得に失敗しました');
+      setShowDebugInfo(true);
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -386,26 +402,65 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
               アクセシビリティ権限
             </h3>
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {isAccessibilityGranted ? '許可済み' : '許可されていません'}
-                </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isAccessibilityGranted ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {isCheckingPermission ? '確認中...' : isAccessibilityGranted ? '許可済み' : '許可されていません'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {!isAccessibilityGranted && (
+                    <button
+                      onClick={() => {
+                        void requestAccessibility();
+                      }}
+                      disabled={isCheckingPermission}
+                      className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                    >
+                      許可をリクエスト
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      void checkAccessibility();
+                    }}
+                    disabled={isCheckingPermission}
+                    className="px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+                  >
+                    再チェック
+                  </button>
+                </div>
               </div>
               {!isAccessibilityGranted && (
-                <button
-                  onClick={() => {
-                    void requestAccessibility();
-                  }}
-                  className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                >
-                  許可をリクエスト
-                </button>
+                <>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 px-3">
+                    システム環境設定で許可した後、「再チェック」ボタンをクリックしてください。
+                  </p>
+                  <div className="px-3 mt-2 space-y-1">
+                    <button
+                      onClick={() => {
+                        void handleGetDebugInfo();
+                      }}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      デバッグ情報を表示
+                    </button>
+                    {showDebugInfo && (
+                      <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto">
+                        {debugInfo}
+                      </pre>
+                    )}
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠️ 権限を付与した後、アプリを完全に再起動してください（ウィンドウを閉じるだけでなく、アプリを終了させる）
+                    </p>
+                  </div>
+                </>
               )}
             </div>
           </section>

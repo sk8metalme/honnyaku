@@ -481,10 +481,31 @@ async fn request_accessibility_permission_prompt() -> PermissionStatus {
 /// macOSネイティブAPIを使用してアクセシビリティ権限を直接確認する
 #[cfg(target_os = "macos")]
 fn check_accessibility_native() -> bool {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
     unsafe {
-        // オプションなしでチェック（プロンプト表示なし）
+        // まず基本的なチェックを実行
         let result = AXIsProcessTrusted();
-        result != 0
+        let is_granted = result != 0;
+
+        // デバッグログを出力
+        eprintln!("[DEBUG] AXIsProcessTrusted result: {}, is_granted: {}", result, is_granted);
+
+        // バンドル情報も出力
+        let ns_bundle_class = Class::get("NSBundle").expect("NSBundle class not found");
+        let main_bundle: *mut Object = msg_send![ns_bundle_class, mainBundle];
+        let bundle_id: *mut Object = msg_send![main_bundle, bundleIdentifier];
+
+        if !bundle_id.is_null() {
+            let utf8: *const i8 = msg_send![bundle_id, UTF8String];
+            if !utf8.is_null() {
+                let bundle_id_str = std::ffi::CStr::from_ptr(utf8).to_string_lossy();
+                eprintln!("[DEBUG] Bundle ID: {}", bundle_id_str);
+            }
+        }
+
+        is_granted
     }
 }
 
@@ -502,13 +523,68 @@ fn is_accessibility_granted() -> bool {
     // ネイティブAPIの結果を取得（macOSの場合）
     #[cfg(target_os = "macos")]
     {
-        check_accessibility_native()
+        let result = check_accessibility_native();
+        eprintln!("[DEBUG] is_accessibility_granted called, result: {}", result);
+        result
     }
 
     // macOS以外の場合はfalseを返す
     #[cfg(not(target_os = "macos"))]
     {
         false
+    }
+}
+
+/// アクセシビリティ権限のデバッグ情報を取得
+#[tauri::command]
+fn get_accessibility_debug_info() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        use objc::runtime::{Class, Object};
+        use objc::{msg_send, sel, sel_impl};
+
+        unsafe {
+            let result = AXIsProcessTrusted();
+            let is_granted = result != 0;
+
+            let ns_bundle_class = Class::get("NSBundle").unwrap();
+            let main_bundle: *mut Object = msg_send![ns_bundle_class, mainBundle];
+            let bundle_id: *mut Object = msg_send![main_bundle, bundleIdentifier];
+            let bundle_path: *mut Object = msg_send![main_bundle, bundlePath];
+
+            let mut debug_info = format!(
+                "AXIsProcessTrusted result: {}\nIs Granted: {}\n",
+                result, is_granted
+            );
+
+            if !bundle_id.is_null() {
+                let utf8: *const i8 = msg_send![bundle_id, UTF8String];
+                if !utf8.is_null() {
+                    let bundle_id_str = std::ffi::CStr::from_ptr(utf8).to_string_lossy();
+                    debug_info.push_str(&format!("Bundle ID: {}\n", bundle_id_str));
+                }
+            }
+
+            if !bundle_path.is_null() {
+                let utf8: *const i8 = msg_send![bundle_path, UTF8String];
+                if !utf8.is_null() {
+                    let bundle_path_str = std::ffi::CStr::from_ptr(utf8).to_string_lossy();
+                    debug_info.push_str(&format!("Bundle Path: {}\n", bundle_path_str));
+                }
+            }
+
+            // 実行ファイルのパスも取得
+            if let Ok(exe_path) = std::env::current_exe() {
+                debug_info.push_str(&format!("Executable Path: {:?}\n", exe_path));
+            }
+
+            debug_info
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        "Not running on macOS".to_string()
     }
 }
 
@@ -682,6 +758,7 @@ pub fn run() {
             check_accessibility_permission_status,
             request_accessibility_permission_prompt,
             is_accessibility_granted,
+            get_accessibility_debug_info,
             read_clipboard,
             write_clipboard,
             get_selected_text,
