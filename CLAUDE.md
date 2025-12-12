@@ -119,6 +119,32 @@ gh release create vX.Y.Z \
 - Verify DMG filename is `honnyaku_X.Y.Z_aarch64.dmg` (not old version)
 - Check release page: https://github.com/sk8metalme/honnyaku/releases
 
+#### 6. Update Release Notes with Installation Instructions
+After the release is created, ensure the release notes on https://github.com/sk8metalme/honnyaku/releases include the following installation instructions:
+
+```markdown
+## インストール手順
+
+### 1. DMGファイルをダウンロード
+- `honnyaku_X.Y.Z_aarch64.dmg` をダウンロード
+
+### 2. アプリケーションフォルダに移動
+1. DMGファイルをダブルクリック
+2. honnyaku.appをアプリケーションフォルダにドラッグ＆ドロップ
+
+### 3. Gatekeeperの隔離属性を削除（重要）
+macOSのセキュリティ機能により、ダウンロードしたアプリは隔離されます。以下のコマンドで隔離属性を削除してください：
+
+\`\`\`bash
+xattr -d com.apple.quarantine /Applications/honnyaku.app
+\`\`\`
+
+このコマンドを実行しないと、アプリケーションが正しく起動しない場合があります。
+
+### 4. アプリケーションを起動
+アプリケーションフォルダから honnyaku を起動してください。
+```
+
 ### Troubleshooting
 
 #### Problem: DMG filename shows old version
