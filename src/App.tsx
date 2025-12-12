@@ -172,11 +172,14 @@ function App() {
               </span>
             </div>
 
-            {/* Ollamaモデル */}
+            {/* モデル */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
               <span className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                モデル: {settings.ollamaModel}
+                モデル:{' '}
+                {settings.provider === 'claude-cli'
+                  ? 'Claude CLI'
+                  : settings.ollamaModel}
               </span>
             </div>
           </div>
