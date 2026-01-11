@@ -332,13 +332,27 @@ Each story is automatically assigned the following labels:
 7. Break down Phase 2 stories based on the components in design.md
 8. Ensure each Story has clear dependencies documented
 
+## Recommended: E2E-First Planning
+
+**推奨**: タスク分割を行う前に、`/michi:e2e-plan` コマンドの使用を検討してください。
+
+E2Eファースト方式でタスクを計画することで、以下のメリットがあります：
+- ミニマム動作確認可能な単位を優先
+- 早期フィードバックの獲得
+- リスクの早期発見
+
+```bash
+/michi:e2e-plan
+```
+
 ## Execution Steps
 
 1. Read `.kiro/specs/{{FEATURE_NAME}}/design.md`
 2. Read `.kiro/specs/{{FEATURE_NAME}}/requirements.md`
-3. Analyze design components and create Story breakdown
-4. Generate `tasks.md` following the Michi Workflow Format above
-5. Save to `.kiro/specs/{{FEATURE_NAME}}/tasks.md`
+3. **（推奨）** `/michi:e2e-plan` コマンドでE2Eファースト計画を作成
+4. Analyze design components and create Story breakdown
+5. Generate `tasks.md` following the Michi Workflow Format above
+6. Save to `.kiro/specs/{{FEATURE_NAME}}/tasks.md`
 
 ## Validation Checklist
 
