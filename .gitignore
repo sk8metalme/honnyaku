@@ -70,3 +70,6 @@ desktop.ini
 *.swp
 *.swo
 .vscode/settings.json.backup
+
+# Playwright MCP temporary files
+.playwright-mcp/

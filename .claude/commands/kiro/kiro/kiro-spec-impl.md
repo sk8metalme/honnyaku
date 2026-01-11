@@ -102,23 +102,32 @@ For each Story in tasks.md:
 
 For each Story implementation:
 
-1. **Code Review (/review)**
+1. **Design Review (/michi:design-review)** - **Recommended for UI Components**
+   - **推奨**: UI/フロントエンドコードを実装した場合、`/michi:design-review` コマンドの使用を検討してください
+   - デザイン品質のレビュー（アクセシビリティ、レスポンシブ、UX）
+   - CSS、React、Vue、HTML、Tailwind の変更時に実行
+
+   ```bash
+   /michi:design-review
+   ```
+
+2. **Code Review (/review)**
    - Execute `/review` command automatically
    - Analyze the implementation for code quality issues
    - Check for best practices and potential bugs
 
-2. **Fix Issues if Found**
+3. **Fix Issues if Found**
    - If review identifies issues, automatically fix them
    - Commit the fixes
    - Re-run `/review` to verify fixes
    - Repeat until `/review` passes without critical issues
 
-3. **Security Review (/security-review)**
+4. **Security Review (/security-review)**
    - Execute `/security-review` command automatically
    - Scan for security vulnerabilities
    - Check for common security issues (SQL injection, XSS, etc.)
 
-4. **Fix Security Issues if Found**
+5. **Fix Security Issues if Found**
    - If security issues are identified, automatically fix them
    - Commit the security fixes
    - Re-run `/security-review` to verify fixes
